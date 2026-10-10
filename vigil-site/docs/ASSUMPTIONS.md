@@ -1,0 +1,1 @@
+The supplied claims are reproduced without independent verification; no citations were supplied. Hosting initially remains owner-private. All hardware, voice and sensor behavior is simulated. Sample checklist is illustrative. Expression on… is the authorized truncated source constant. Relative assets and a static dist build permit later custom-domain hosting.
