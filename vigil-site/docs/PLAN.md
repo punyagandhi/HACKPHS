@@ -1,0 +1,1 @@
+P0 source saved. P1 scaffold and content. P2 evidence and why. P3 audience, scope, pipeline. P4 procedural scene. P5 deterministic simulation. P6 accessibility and responsive polish. P7 checks, preview, publication.
