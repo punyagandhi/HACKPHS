@@ -1,10 +1,23 @@
 import unittest
+from unittest.mock import patch
 
-from ivisyx.cores3_camera import CoreS3Camera
+from ivisyx.cores3_camera import CoreS3Camera, connect_camera
 from test_cores3_audio import SerialFixture
 
 
 class CameraProtocolTests(unittest.TestCase):
+    def test_connect_can_leave_camera_off_until_button(self):
+        serial = SerialFixture()
+        with patch("serial.Serial", return_value=serial):
+            camera = connect_camera("/dev/test", 115200, start=False)
+        self.assertIsInstance(camera, CoreS3Camera)
+        self.assertEqual(serial.writes, [])
+
+    def test_nonpresentation_camera_still_starts_on_connect(self):
+        serial = SerialFixture([b"ok:camera:on\n"])
+        with patch("serial.Serial", return_value=serial):
+            connect_camera("/dev/test", 115200)
+        self.assertEqual(serial.writes, [b"camera:on\n"])
     def test_audio_interleaving_releases_camera_after_frame(self):
         jpeg = b"\xff\xd8\xff\xd9"
         serial = SerialFixture([b"ok:camera:on\n", b"jpeg:4\n", b"ok:camera:off\n"], jpeg)

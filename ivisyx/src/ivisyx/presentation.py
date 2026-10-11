@@ -5,10 +5,12 @@ import time
 MODERATE_EVENT = (
     "ivisyx presentation sensor event: SYNTHETIC, NOT A CAMERA MEASUREMENT. "
     "The scripted drowsiness score is 50/100, MODERATE. Say exactly: "
-    "Moderate drowsiness detected. Please put on your ivisyx glasses. "
-    "Follow your approved fatigue procedures. "
-    "Do not greet, ask for confirmation, or start a checklist. "
-    "Set the display message to Put on ivisyx glasses. "
+    "Moderate drowsiness detected. Are you feeling drowsy? "
+    "Wait for the answer. Only if affirmative, say exactly: "
+    "Please put on your ivisyx glasses. Follow your approved fatigue procedures. "
+    "If negative, say: Understood. Please stay attentive to how you feel. "
+    "If unclear, repeat only: Are you feeling drowsy? "
+    "Do not greet or start a checklist. Do not suggest glasses before an affirmative answer. "
     "Do not say presentation test. The screen marks the score TEST. "
     "If asked, explain that the score is scripted, not a camera measurement. "
     "Never claim this score measures the pilot or that glasses treat fatigue."
@@ -42,7 +44,7 @@ class PresentationSequence:
         if not self.started or self.alert_sent:
             return
         # The configured First Message already delivers the alert; do not repeat it.
-        if self.display.message == "Put on ivisyx glasses":
+        if self.display.message in ("Feeling drowsy?", "Put on ivisyx glasses", "Alert acknowledged"):
             self.alert_sent = True
             return
         if audio.has_received_audio:

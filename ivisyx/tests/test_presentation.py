@@ -36,12 +36,12 @@ class PresentationTests(unittest.TestCase):
     def test_correct_first_message_is_not_interrupted_or_repeated(self):
         self.sequence.begin()
         self.audio.camera_window_available.return_value = False
-        self.display.agent_response("Moderate drowsiness detected. Please put on your ivisyx glasses. Follow your approved fatigue procedures.")
+        self.display.agent_response("Moderate drowsiness detected. Are you feeling drowsy?")
         self.sequence.update(self.conversation, self.audio)
         self.sequence.update(self.conversation, self.audio)
         self.assertTrue(self.sequence.alert_sent)
         self.conversation.send_user_message.assert_not_called()
-        self.robot.show_message.assert_called_with("Put on ivisyx glasses")
+        self.robot.show_message.assert_called_with("Feeling drowsy?")
 
     def test_old_opening_finishes_before_fallback_alert(self):
         self.sequence.begin()
@@ -69,14 +69,24 @@ class PresentationTests(unittest.TestCase):
         self.sequence.update(self.conversation, self.audio)
         self.conversation.send_user_message.assert_called_once_with(MODERATE_EVENT)
 
-    def test_glasses_suggestion_requires_no_user_confirmation(self):
-        self.display.agent_response("Moderate drowsiness detected. Please put on your ivisyx glasses.")
-        self.robot.show_message.assert_called_once_with("Put on ivisyx glasses")
+    def test_question_does_not_show_glasses_before_agent_affirmative_reply(self):
+        self.display.agent_response("Moderate drowsiness detected. Are you feeling drowsy?")
+        self.display.user_transcript("yes")
+        self.robot.show_message.assert_called_once_with("Feeling drowsy?")
+        self.display.agent_response("Please put on your ivisyx glasses. Follow your approved fatigue procedures.")
+        self.robot.show_message.assert_called_with("Put on ivisyx glasses")
 
-    def test_event_is_direct_and_has_no_confirmation_question(self):
-        self.assertIn("Moderate drowsiness detected. Please put on your ivisyx glasses.", MODERATE_EVENT)
-        self.assertNotIn("Are you feeling drowsy?", MODERATE_EVENT)
-        self.assertNotIn("Only if they affirm", MODERATE_EVENT)
+    def test_event_asks_question_and_waits_for_affirmative_answer(self):
+        self.assertIn("Moderate drowsiness detected. Are you feeling drowsy?", MODERATE_EVENT)
+        self.assertIn("Only if affirmative", MODERATE_EVENT)
+        self.assertIn("If negative", MODERATE_EVENT)
+
+    def test_negative_answer_leaves_glasses_reminder_off(self):
+        self.display.agent_response("Moderate drowsiness detected. Are you feeling drowsy?")
+        self.display.user_transcript("no")
+        self.display.agent_response("Understood. Please stay attentive to how you feel.")
+        self.robot.show_message.assert_called_with("Alert acknowledged")
+        self.assertNotIn("Put on ivisyx glasses", [c.args[0] for c in self.robot.show_message.call_args_list])
 
     def test_fallback_retries_when_socket_not_ready(self):
         self.sequence.begin()

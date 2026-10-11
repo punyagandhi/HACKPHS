@@ -38,7 +38,7 @@ class CoreS3Camera(CoreS3Bridge):
             return data
 
 
-def connect_camera(port: str | None, baud: int) -> CoreS3Camera:
+def connect_camera(port: str | None, baud: int, *, start: bool = True) -> CoreS3Camera:
     import serial
     from ivisyx.stackchan import autodetect_stackchan_port
 
@@ -50,7 +50,8 @@ def connect_camera(port: str | None, baud: int) -> CoreS3Camera:
     except serial.SerialException as exc:
         raise RuntimeError("Cannot open CoreS3. Stop the voice assistant and Arduino serial monitor first.") from exc
     try:
-        camera.start_camera()
+        if start:
+            camera.start_camera()
     except Exception:
         camera.close()
         raise

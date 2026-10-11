@@ -123,7 +123,7 @@ def main() -> None:
     last_button = 0
     try:
         with vision.FaceLandmarker.create_from_options(options) as landmarker:
-            camera = connect_camera(settings.stackchan_port, settings.stackchan_baud)
+            camera = connect_camera(settings.stackchan_port, settings.stackchan_baud, start=not args.presentation)
             robot_display = RobotDisplay(camera)
             robot_display.start()
             if args.agent:
@@ -145,6 +145,7 @@ def main() -> None:
                 )
                 robot_audio.on_error = conversation.end_session
                 if args.presentation:
+                    camera.arm_presentation(False)
                     last_button = camera.presentation_status()["presses"]
                     sequence = PresentationSequence(robot_display)
                     camera.arm_presentation(True)
@@ -161,6 +162,12 @@ def main() -> None:
             if not args.headless:
                 cv2.namedWindow(WINDOW, cv2.WINDOW_NORMAL)
                 cv2.resizeWindow(WINDOW, 960, 720)
+                if args.presentation:
+                    import numpy as np
+                    canvas = np.zeros((240, 320, 3), dtype=np.uint8)
+                    cv2.putText(canvas, "Waiting for power button", (15, 120),
+                                cv2.FONT_HERSHEY_SIMPLEX, .6, (220, 220, 220), 1)
+                    cv2.imshow(WINDOW, canvas)
             print("CoreS3 face tracking started. Face the robot camera; close the window or press Escape to stop.", flush=True)
             while not args.seconds or time.monotonic() - started < args.seconds:
                 if robot_audio is not None and robot_audio.error:
@@ -175,7 +182,7 @@ def main() -> None:
                         acquisition.begin(time.monotonic())
                         agent_status = "Looking for face / speech paused"
                     sequence.update(conversation, robot_audio)
-                    if sequence.tracking_paused:
+                    if acquisition is None or sequence.tracking_paused:
                         if not args.headless and cv2.waitKey(1) & 0xFF in (27, ord("q")):
                             break
                         if not args.headless and cv2.getWindowProperty(WINDOW, cv2.WND_PROP_VISIBLE) < 1:

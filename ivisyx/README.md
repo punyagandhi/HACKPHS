@@ -3,6 +3,8 @@
 ## Power-Button Presentation
 
 Run `run_presentation.py` in PyCharm; stop all other robot launchers first.
+Before the button click, camera capture, motor movement, microphone streaming,
+and speech remain off. Wait for the launcher to report that it is ready.
 Keep the robot on a stable surface with clearance above its head. Short-click
 the power button, not a long hold. The head receives a slow 45-degree upward
 pitch command, then makes a small yaw search, at most 12 degrees either side
@@ -31,8 +33,8 @@ lights off. Green indicates readiness of the companion, not fitness to fly.
 
 When the agent requests ivisyx glasses, the orange reminder also triggers a
 slow return of both servos to their measured positions before the startup
-tilt/search. This runs once per armed presentation, when the opening glasses
-suggestion is delivered. No servo calibration is changed.
+tilt/search. This runs once per armed presentation, only after an affirmative
+answer to the drowsiness question. No servo calibration is changed.
 `home:status` reports saved starting positions, measured current positions,
 and whether the return command was accepted; acceptance alone is not proof
 that the physical head returned.
@@ -53,8 +55,11 @@ or ElevenLabs connection. It saves no images or audio and releases motor power
 on exit. Physical angle and audible quality still require human confirmation.
 
 After the face search, ivisyx starts directly with:
-"Moderate drowsiness detected. Please put on your ivisyx glasses. Follow your approved fatigue procedures."
-There is no greeting, checklist, or confirmation question. The scripted score
+"Moderate drowsiness detected. Are you feeling drowsy?"
+It waits for the answer. If affirmative, it says "Please put on your ivisyx
+glasses. Follow your approved fatigue procedures." If negative, it says
+"Understood. Please stay attentive to how you feel." An unclear answer repeats
+only the question. There is no greeting or checklist. The scripted score
 is displayed immediately. If ElevenLabs delivers this First Message, Python
 does not repeat it. If no First Message arrives within five seconds, Python
 sends the alert as a fallback; an older opening is allowed to finish before
@@ -74,7 +79,7 @@ Audio uses only Stack-chan's microphone and speaker. Motor power is released
 on exit or after loss of the application's button-status heartbeat.
 
 Paste `agent_prompt.txt` into ElevenLabs and change its separate First Message
-to: "Moderate drowsiness detected. Please put on your ivisyx glasses. Follow your approved fatigue procedures." If you configured the
+to: "Moderate drowsiness detected. Are you feeling drowsy?" If you configured the
 `update_robot_display` client tool, use only the optional message parameter.
 The local client does not update your ElevenLabs dashboard configuration.
 If the agent still says the old demo greeting, ensure the new configuration
@@ -224,11 +229,11 @@ Never hardcode the API key in Python. `.env` is ignored by Git.
 
 Use agent `agent_5801m4k7sc11f9htwjbpcw7bnm4x` in ElevenLabs. Set its name to **ivisyx** and its system
 prompt to the contents of `agent_prompt.txt`. That prompt includes concise replies,
-the direct scripted moderate alert and handling for `ivisyx simulation sensor event:`
+the scripted moderate question and handling for `ivisyx simulation sensor event:`
 alerts. Set the separate First Message field to:
 
 ```text
-Moderate drowsiness detected. Please put on your ivisyx glasses. Follow your approved fatigue procedures.
+Moderate drowsiness detected. Are you feeling drowsy?
 ```
 
 The agent ID and local environment settings remain unchanged. The original
@@ -238,8 +243,9 @@ For both audio interfaces, configure input and output audio as **PCM 16 kHz** in
 
 ### Reminders and stage lights
 
-The screen starts with "Pilot support ready". The presentation announces moderate
-drowsiness and suggests glasses directly. Agent reminders update the display
+After the button-triggered search, the screen shows "Pilot support ready".
+The presentation asks about drowsiness and suggests glasses only after an
+affirmative answer. Agent reminders update the display
 without requiring a client tool.
 
 For explicit screen updates, add a **client tool** named `update_robot_display`
@@ -356,4 +362,4 @@ transfer; short replies flush at the timeout. Camera transfers wait while
 buffered speech is in flight, and playback drains before the microphone resumes.
 The presentation does not interrupt or repeat a correctly configured opening
 alert. If an old opening plays, it finishes before the fallback alert is sent.
-If no First Message arrives, the direct alert is requested after five seconds.
+If no First Message arrives, the drowsiness question is requested after five seconds.
