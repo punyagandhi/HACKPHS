@@ -1,4 +1,4 @@
-"""Bounded startup search; speech remains off until a face is acquired."""
+"""Bounded startup search; speech can proceed after acquisition or timeout."""
 
 
 class FaceAcquisition:
@@ -21,13 +21,17 @@ class FaceAcquisition:
         self.next_move = now + 1.5
         self.display.set_message("Looking for your face")
 
+    @property
+    def ready_for_conversation(self):
+        return self.found or self.failed
+
     def update(self, now, has_face):
         if self.found or self.failed:
             return
         if now - self.started_at >= self.TIMEOUT:
             self.robot.cancel_face_search()
             self.failed = True
-            self.display.set_message("No face found: press power")
+            self.display.set_message("No face found: continuing")
             return
         if now < self.started_at + 1.5:
             return

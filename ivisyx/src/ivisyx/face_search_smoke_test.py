@@ -41,7 +41,7 @@ def main():
                 print(f"Face={bool(result.face_landmarks)} confirmations={search.hits} sweep_steps={search.index}", flush=True)
                 time.sleep(.25)
         print("FACE ACQUIRED: search stopped; conversation would now start."
-              if search.found else "NO FACE: stopped safely without starting speech.", flush=True)
+              if search.found else "NO FACE: search stopped; conversation would now start anyway.", flush=True)
     finally:
         try:
             camera.arm_presentation(False)

@@ -7,6 +7,7 @@
 #include <cmath>
 #include <drivers/SCServo_lib/src/SCSCL.h>
 #include <Preferences.h>
+#include "StageLights.h"
 
 String lineBuffer;
 String expression = "neutral";
@@ -20,6 +21,7 @@ uint32_t activityUntil = 0;
 m5::PY32IOExpander_Class sideLights;
 bool lightsReady = false;
 bool lightsOn = false;
+bool stageLightsEnabled = true;
 uint32_t lastLightUpdate = 0;
 uint32_t lightUpdates = 0;
 static constexpr size_t audioSamples = 4000;
@@ -105,15 +107,23 @@ bool talking() {
          (remoteActivity == "speaking" && static_cast<int32_t>(activityUntil - millis()) > 0);
 }
 
+LightStage currentLightStage() {
+  bool glasses = displayMessage.indexOf("Put on") >= 0 && displayMessage.indexOf("glasses") >= 0;
+  return selectLightStage(stageLightsEnabled, displayMessage == "Looking for your face",
+                          micActive, talking(), checklistStep == 2, glasses);
+}
+
 void pumpLights() {
-  bool active = talking();
+  LightStage stage = currentLightStage();
+  StageColor color = stageColor(stage);
+  bool active = stage != LightStage::Off;
   if (!lightsReady || (!active && !lightsOn) || (active && millis() - lastLightUpdate < 50)) return;
   lastLightUpdate = millis();
   for (int i = 0; i < 6; ++i) {
-    float wave = active ? 0.25f + 0.75f * (0.5f + 0.5f * sinf(millis() / 220.0f - i * 0.5f)) : 0;
-    uint8_t r = static_cast<uint8_t>((12 + i * 13) * wave);
-    uint8_t g = static_cast<uint8_t>((140 - i * 17) * wave);
-    uint8_t b = static_cast<uint8_t>(180 * wave);
+    float wave = active ? 0.25f + 0.75f * (0.5f + 0.5f * sinf(millis() / color.period - i * 0.5f)) : 0;
+    uint8_t r = static_cast<uint8_t>(color.r * wave);
+    uint8_t g = static_cast<uint8_t>(color.g * wave);
+    uint8_t b = static_cast<uint8_t>(color.b * wave);
     sideLights.setLedColor(i, r, g, b);
     sideLights.setLedColor(11 - i, r, g, b);
   }
@@ -143,6 +153,7 @@ void pumpDisplay() {
   M5.update();
   if (demoArmed && millis() - demoHeartbeat > 15000) {
     demoArmed = false;
+    stageLightsEnabled = false;
     stopMotorPower();
   }
   if (demoArmed && motionResult == "idle" && M5.BtnPWR.wasClicked()) {
@@ -311,6 +322,7 @@ void playAudio(const String& argument, bool queued = false) {
 void handleLine(const String& line) {
   if (line == "demo:arm" || line == "demo:disarm") {
     demoArmed = line == "demo:arm";
+    stageLightsEnabled = demoArmed;
     demoHeartbeat = millis();
     if (!demoArmed) {
       stopMotorPower();
@@ -366,7 +378,7 @@ void handleLine(const String& line) {
       Serial.println("ERR cannot hold yaw search"); return;
     }
     if (line == "seek:cancel") {
-      pitchBus.EnableTorque(1, 0); searchActive = false; motionResult = "idle";
+      pitchBus.EnableTorque(1, 0); searchActive = false;
     }
     demoHeartbeat = millis(); Serial.println("ok:" + line); return;
   }
@@ -416,8 +428,8 @@ void handleLine(const String& line) {
     Serial.println("ok:" + line); return;
   }
   if (line == "lights:status") {
-    Serial.printf("lights:ready:%u active:%u updates:%lu bus_power:%u version:%u config:%u\n",
-                  lightsReady, talking(), static_cast<unsigned long>(lightUpdates),
+    Serial.printf("lights:ready:%u active:%u updates:%lu stage:%s bus_power:%u version:%u config:%u\n",
+                  lightsReady, currentLightStage() != LightStage::Off, static_cast<unsigned long>(lightUpdates), stageColor(currentLightStage()).name,
                   M5.Power.getExtOutput(), sideLights.readVersion(), sideLights.readRegister8(0x24));
     return;
   }
@@ -506,6 +518,7 @@ void handleLine(const String& line) {
     return;
   }
   if (line == "audio") {
+    stageLightsEnabled = true;
     Serial.println("audio:pcm_16000:8000:v2");
     return;
   }
@@ -522,6 +535,7 @@ void handleLine(const String& line) {
     return;
   }
   if (line == "idle") {
+    stageLightsEnabled = false;
     idleAudio();
     Serial.println("ok:idle");
     return;

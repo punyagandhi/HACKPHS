@@ -58,6 +58,11 @@ class AudioProtocolTests(unittest.TestCase):
         serial = SerialFixture([b"display:status audio:listening\n"])
         self.assertEqual(CoreS3Bridge(serial).status(), "display:status audio:listening")
 
+    def test_light_status_reports_stage(self):
+        serial = SerialFixture([b"lights:ready:1 stage:glasses\n"])
+        self.assertEqual(CoreS3Bridge(serial).lights_status(), "lights:ready:1 stage:glasses")
+        self.assertEqual(serial.writes, [b"lights:status\n"])
+
     def test_capture_handles_fragmented_binary_with_newlines(self):
         payload = bytes(range(256)) * 31 + bytes(range(64))
         self.assertEqual(len(payload), CHUNK_BYTES)

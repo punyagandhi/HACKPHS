@@ -8,8 +8,8 @@ the power button, not a long hold. The head receives a slow 45-degree upward
 pitch command, then makes a small yaw search, at most 12 degrees either side
 of its starting position. Two consecutive face detections stop the search
 and start the conversation. The Mac must remain connected and running.
-If no face is found within 14 seconds, the robot stops searching and stays
-silent; face the camera and short-click power again to retry. Servo failures
+If no face is found within 14 seconds, the robot stops searching and starts
+the conversation anyway, without claiming that a face was found. Servo failures
 stop the launch rather than starting speech with an unconfirmed face.
 A received command is not proof of
 the physical angle; confirm the tilt visually. M5Stack recommends the base
@@ -20,6 +20,17 @@ limits. It never changes servo mode, calibration, or EEPROM limits. Keep the
 robot on a stable surface with clearance for both tilt and the small sweep.
 This is startup acquisition only, not continuous face following. During the
 checklist and drowsiness question, the head stays still and camera updates pause.
+
+Both side bars pulse yellow during face search, cyan while the microphone is
+on, magenta while speaking, green after checklist completion, and orange when
+the glasses reminder is displayed. Speech overrides green; orange overrides
+speech and mic status until the reminder changes. Stopping the app turns the
+lights off. Green confirms checklist progress only, not fitness to fly.
+
+To check the five light stages without ElevenLabs, stop other robot programs
+and run `PYTHONPATH=src .venv/bin/python -m ivisyx.stage_lights_smoke_test`.
+It briefly captures the robot mic in memory, plays a tone, cycles each stage,
+prints firmware diagnostics, and turns lights off on exit. No recording is saved.
 
 For a camera/servo-only startup check, with all other robot programs stopped:
 

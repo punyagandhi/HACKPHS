@@ -17,6 +17,7 @@ class FaceAcquisitionTests(unittest.TestCase):
         self.robot.search_yaw.assert_not_called()
         self.robot.hold_face_search.assert_not_called()
         self.assertFalse(self.search.found)
+        self.assertFalse(self.search.ready_for_conversation)
 
     def test_first_detection_freezes_and_second_acquires(self):
         self.search.update(12, True)
@@ -24,6 +25,7 @@ class FaceAcquisitionTests(unittest.TestCase):
         self.assertFalse(self.search.found)
         self.search.update(12.3, True)
         self.assertTrue(self.search.found)
+        self.assertTrue(self.search.ready_for_conversation)
         self.search.update(13, False)
         self.robot.search_yaw.assert_not_called()
 
@@ -38,6 +40,8 @@ class FaceAcquisitionTests(unittest.TestCase):
         self.assertTrue(self.search.failed)
         self.assertFalse(self.search.found)
         self.robot.cancel_face_search.assert_called_once()
+        self.assertTrue(self.search.ready_for_conversation)
+        self.display.set_message.assert_called_with("No face found: continuing")
         self.search.update(25, False)
         self.robot.search_yaw.assert_not_called()
 

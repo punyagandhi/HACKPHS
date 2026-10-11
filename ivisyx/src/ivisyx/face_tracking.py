@@ -208,14 +208,12 @@ def main() -> None:
                     last_preview = time.monotonic()
                 if acquisition is not None and not (acquisition.found or acquisition.failed):
                     acquisition.update(time.monotonic(), bool(result.face_landmarks))
-                    if acquisition.found:
+                    if acquisition.ready_for_conversation:
                         camera.stop_camera()
                         sequence.begin()
                         conversation.start_session()
                         conversation_started = True
-                        agent_status = "Face acquired / Stack-chan audio"
-                    elif acquisition.failed:
-                        agent_status = "No face found / press power to retry"
+                        agent_status = ("Face acquired" if acquisition.found else "No face / continuing") + " / Stack-chan audio"
                 eyelids = None
                 if monitor is not None:
                     ratios = eye_ratios(result.face_landmarks[0], frame.shape[1], frame.shape[0]) if result.face_landmarks else None

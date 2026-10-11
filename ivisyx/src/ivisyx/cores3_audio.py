@@ -104,6 +104,11 @@ class CoreS3Bridge(StackChan):
             self._write(b"status\n")
             return self._reply("display:")
 
+    def lights_status(self) -> str:
+        with self._lock:
+            self._write(b"lights:status\n")
+            return self._reply("lights:")
+
     def show_preview(self, jpeg: bytes) -> None:
         if not 4 <= len(jpeg) <= 20000 or not jpeg.startswith(b"\xff\xd8") or not jpeg.endswith(b"\xff\xd9"):
             raise ValueError("Preview requires a JPEG of at most 20000 bytes")
