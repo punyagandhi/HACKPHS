@@ -48,6 +48,29 @@ String motionResult = "idle";
 int pitchCurrent = -1, pitchTarget = -1, pitchLimit = -1, pitchTorqueAck = -1, pitchWriteAck = -1;
 int searchOrigin = -1, searchMinimum = -1, searchMaximum = -1;
 bool searchActive = false;
+int startingYaw = -1, startingPitch = -1;
+bool returnAttempted = false;
+String returnResult = "idle";
+
+bool returnToStartingPosition() {
+  if (!demoArmed || !pitchBusReady || startingYaw < 0 || startingPitch < 0 ||
+      startingYaw > 1000 || startingPitch > 1000) return false;
+  int yawMin = pitchBus.readWord(1, SCSCL_MIN_ANGLE_LIMIT_L);
+  int yawMax = pitchBus.readWord(1, SCSCL_MAX_ANGLE_LIMIT_L);
+  int pitchMin = pitchBus.readWord(2, SCSCL_MIN_ANGLE_LIMIT_L);
+  int pitchMax = pitchBus.readWord(2, SCSCL_MAX_ANGLE_LIMIT_L);
+  if (yawMin < 0 || pitchMin < 0 || yawMax <= yawMin || pitchMax <= pitchMin ||
+      startingYaw < yawMin || startingYaw > yawMax ||
+      startingPitch < pitchMin || startingPitch > pitchMax) return false;
+  searchActive = false;
+  if (pitchBus.EnableTorque(1, 1) != 1 || pitchBus.EnableTorque(2, 1) != 1 ||
+      pitchBus.WritePos(1, startingYaw, 1200, 0) != 1 ||
+      pitchBus.WritePos(2, startingPitch, 1200, 0) != 1) {
+    pitchBus.EnableTorque(1, 0); pitchBus.EnableTorque(2, 0); return false;
+  }
+  demoHeartbeat = millis();
+  return true;
+}
 
 void stopMotorPower() {
   searchActive = false;
@@ -84,6 +107,10 @@ bool tiltUp45() {
     current = pitchBus.ReadPos(2);
   }
   pitchCurrent = current;
+  int yaw = pitchBus.ReadPos(1);
+  if (yaw < 0 || yaw > 1000) { sideLights.digitalWrite(0, false); return false; }
+  startingYaw = yaw;
+  startingPitch = current;
   Preferences preferences;
   preferences.begin("servo", true);
   int zero = preferences.getInt("zero_pos_2", 620);
@@ -326,7 +353,10 @@ void handleLine(const String& line) {
     demoHeartbeat = millis();
     if (!demoArmed) {
       stopMotorPower();
-    } else { presentationScore = -1; motionResult = "idle"; }
+    } else {
+      presentationScore = -1; motionResult = "idle";
+      startingYaw = startingPitch = -1; returnAttempted = false; returnResult = "idle";
+    }
     displayDirty = true;
     Serial.println("ok:" + line); return;
   }
@@ -340,6 +370,12 @@ void handleLine(const String& line) {
     ++buttonPresses;
     motionResult = tiltUp45() ? "commanded" : "failed";
     Serial.println("ok:demo:tilt"); return;
+  }
+  if (line == "home:status") {
+    int yaw = pitchBusReady && demoArmed ? pitchBus.ReadPos(1) : -1;
+    int pitch = pitchBusReady && demoArmed ? pitchBus.ReadPos(2) : -1;
+    Serial.printf("home:start_yaw=%d start_pitch=%d yaw=%d pitch=%d return=%s\n",
+                  startingYaw, startingPitch, yaw, pitch, returnResult.c_str()); return;
   }
   if (line == "seek:start") {
     if (!demoArmed || !pitchBusReady || motionResult != "commanded") {
@@ -417,6 +453,11 @@ void handleLine(const String& line) {
   if (line.startsWith("message:")) {
     if (line.length() > 128) { Serial.println("ERR message too long"); return; }
     displayMessage = line.substring(8); displayDirty = true;
+    if (demoArmed && !returnAttempted && displayMessage.indexOf("Put on") >= 0 &&
+        displayMessage.indexOf("glasses") >= 0) {
+      returnAttempted = true;
+      returnResult = returnToStartingPosition() ? "commanded" : "failed";
+    }
     Serial.println("ok:message"); return;
   }
   if (line.startsWith("activity:")) {

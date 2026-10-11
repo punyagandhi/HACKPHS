@@ -27,6 +27,14 @@ the glasses reminder is displayed. Speech overrides green; orange overrides
 speech and mic status until the reminder changes. Stopping the app turns the
 lights off. Green confirms checklist progress only, not fitness to fly.
 
+When the agent requests ivisyx glasses, the orange reminder also triggers a
+slow return of both servos to their measured positions before the startup
+tilt/search. This runs once per armed presentation, not on the initial moderate
+alert or a negative drowsiness answer. No servo calibration is changed.
+`home:status` reports saved starting positions, measured current positions,
+and whether the return command was accepted; acceptance alone is not proof
+that the physical head returned.
+
 To check the five light stages without ElevenLabs, stop other robot programs
 and run `PYTHONPATH=src .venv/bin/python -m ivisyx.stage_lights_smoke_test`.
 It briefly captures the robot mic in memory, plays a tone, cycles each stage,

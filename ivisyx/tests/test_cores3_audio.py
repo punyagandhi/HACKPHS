@@ -63,6 +63,13 @@ class AudioProtocolTests(unittest.TestCase):
         self.assertEqual(CoreS3Bridge(serial).lights_status(), "lights:ready:1 stage:glasses")
         self.assertEqual(serial.writes, [b"lights:status\n"])
 
+    def test_home_status_distinguishes_command_from_actual_positions(self):
+        serial = SerialFixture([b"home:start_yaw=460 start_pitch=578 yaw=461 pitch=579 return=commanded\n"])
+        self.assertEqual(CoreS3Bridge(serial).home_status(), {
+            "start_yaw": 460, "start_pitch": 578, "yaw": 461, "pitch": 579, "return": "commanded"
+        })
+        self.assertEqual(serial.writes, [b"home:status\n"])
+
     def test_capture_handles_fragmented_binary_with_newlines(self):
         payload = bytes(range(256)) * 31 + bytes(range(64))
         self.assertEqual(len(payload), CHUNK_BYTES)

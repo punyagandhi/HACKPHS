@@ -109,6 +109,13 @@ class CoreS3Bridge(StackChan):
             self._write(b"lights:status\n")
             return self._reply("lights:")
 
+    def home_status(self) -> dict:
+        with self._lock:
+            self._write(b"home:status\n")
+            reply = self._reply("home:")
+            values = dict(item.split("=", 1) for item in reply[5:].split())
+            return {key: value if key == "return" else int(value) for key, value in values.items()}
+
     def show_preview(self, jpeg: bytes) -> None:
         if not 4 <= len(jpeg) <= 20000 or not jpeg.startswith(b"\xff\xd8") or not jpeg.endswith(b"\xff\xd9"):
             raise ValueError("Preview requires a JPEG of at most 20000 bytes")
