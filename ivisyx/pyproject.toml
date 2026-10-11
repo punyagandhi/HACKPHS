@@ -1,0 +1,20 @@
+[project]
+name = "ivisyx-mvp"
+version = "0.1.0"
+description = "ElevenLabs desktop voice assistant bridge for Stack-chan on M5Stack CoreS3."
+requires-python = ">=3.10"
+dependencies = [
+  "elevenlabs[pyaudio]==2.71.0",
+  "pyserial==3.5",
+  "python-dotenv==1.2.4",
+]
+
+[project.optional-dependencies]
+vision = [
+  "mediapipe==1.1.0",
+  "opencv-contrib-python==5.0.0.93",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

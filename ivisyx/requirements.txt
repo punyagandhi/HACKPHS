@@ -1,0 +1,3 @@
+elevenlabs[pyaudio]==2.71.0
+pyserial==3.5
+python-dotenv==1.2.4
