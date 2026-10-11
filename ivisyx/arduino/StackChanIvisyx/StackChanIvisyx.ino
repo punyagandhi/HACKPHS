@@ -137,7 +137,7 @@ bool talking() {
 LightStage currentLightStage() {
   bool glasses = displayMessage.indexOf("Put on") >= 0 && displayMessage.indexOf("glasses") >= 0;
   return selectLightStage(stageLightsEnabled, displayMessage == "Looking for your face",
-                          micActive, talking(), checklistStep == 2, glasses);
+                          micActive, talking(), displayMessage == "Pilot support ready" && !micActive, glasses);
 }
 
 void pumpLights() {
@@ -202,16 +202,9 @@ void pumpDisplay() {
     CoreS3.Display.drawRightString(status, 310, 6);
     CoreS3.Display.drawFastHLine(10, 30, 300, 0x4208);
     CoreS3.Display.setTextColor(0x9CF3, BLACK);
-    CoreS3.Display.drawString(checklistStep == 2 ? "PREFLIGHT CHECKLIST COMPLETE" : "PREFLIGHT CHECK-IN", 10, 36);
-    const char* items[] = {"Aircraft checklist"};
-    for (int i = 0; i < 1; ++i) {
-      bool done = checklistStep > i;
-      bool current = checklistStep == i;
-      int y = 72 + i * 38;
-      CoreS3.Display.setTextColor(done ? GREEN : current ? CYAN : 0x9CF3, BLACK);
-      CoreS3.Display.drawString(done ? "OK" : current ? ">" : "-", 10, y);
-      CoreS3.Display.drawString(items[i], 30, y);
-    }
+    CoreS3.Display.drawString("PILOT SUPPORT", 10, 36);
+    CoreS3.Display.setTextColor(CYAN, BLACK);
+    CoreS3.Display.drawString(displayMessage == "Looking for your face" ? "SEARCHING" : "VOICE SESSION", 10, 72);
     if (previewLength) CoreS3.Display.drawJpg(previewBuffer, previewLength, 166, 62);
     CoreS3.Display.setTextColor(previewStale ? YELLOW : GREEN, BLACK);
     CoreS3.Display.drawString(previewStale ? "EYES: PAUSED" : "EYE TRACKING", 166, 170);

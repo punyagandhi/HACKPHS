@@ -18,22 +18,20 @@ class DisplayTests(unittest.TestCase):
         self.robot.show_checklist.assert_called_once_with(-1)
         self.robot.show_message.assert_called_once_with("Pilot support ready")
 
-    def test_preset_questions_and_completion_update_display(self):
-        for step, question in enumerate(RobotDisplay.QUESTIONS):
-            self.display.agent_response(question.upper() + "?")
-            self.assertEqual(self.display.step, step)
+    def test_old_checklist_responses_do_not_update_display(self):
+        self.display.agent_response("Have you reviewed your aircraft's approved preflight checklist?")
         self.display.agent_response("Preflight check-in complete.")
-        self.robot.show_checklist.assert_called_with(2)
+        self.robot.show_checklist.assert_not_called()
 
     def test_user_confirmation_does_not_guess_checklist_state(self):
         self.display.user_transcript("yes")
         self.display.agent_response("Understood.")
         self.robot.show_checklist.assert_not_called()
 
-    def test_repeated_question_does_not_resend(self):
+    def test_repeated_glasses_reminder_does_not_resend(self):
         for _ in range(2):
-            self.display.agent_response("Have you reviewed your aircraft's approved preflight checklist?")
-        self.robot.show_checklist.assert_called_once_with(0)
+            self.display.agent_response("Please put on your ivisyx glasses.")
+        self.robot.show_message.assert_called_once_with("Put on ivisyx glasses")
 
     def test_tool_validates_every_field_before_changing_screen(self):
         for values in ({"checklist_step": 2, "message": 42},

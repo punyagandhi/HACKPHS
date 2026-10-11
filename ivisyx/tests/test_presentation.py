@@ -38,7 +38,8 @@ class PresentationTests(unittest.TestCase):
         self.conversation.send_user_message.assert_not_called()
         self.audio.camera_window_available.return_value = True
         self.sequence.update(self.conversation, self.audio)
-        self.conversation.send_user_message.assert_called_once_with(START_EVENT)
+        self.conversation.send_user_message.assert_not_called()
+        self.assertTrue(self.sequence.start_sent)
 
     def test_no_greeting_falls_back_after_five_seconds(self):
         self.audio.has_received_audio = False
@@ -50,22 +51,18 @@ class PresentationTests(unittest.TestCase):
             self.sequence.update(self.conversation, self.audio)
         self.conversation.send_user_message.assert_called_once_with(START_EVENT)
 
-    def test_one_question_before_synthetic_alert(self):
+    def test_greeting_then_alert_without_checklist_or_duplicate_greeting(self):
         self.sequence.begin()
         self.sequence.update(self.conversation, self.audio)
-        self.conversation.send_user_message.assert_called_once_with(START_EVENT)
-        for question in ("Have you reviewed your aircraft's approved preflight checklist?",):
-            self.display.agent_response(question)
-            self.sequence.update(self.conversation, self.audio)
+        self.conversation.send_user_message.assert_not_called()
         self.assertFalse(self.sequence.alert_sent)
-        self.display.agent_response("Preflight checklist complete.")
         self.audio.camera_window_available.return_value = False
         self.sequence.update(self.conversation, self.audio)
         self.assertFalse(self.sequence.alert_sent)
         self.audio.camera_window_available.return_value = True
         self.sequence.update(self.conversation, self.audio)
         self.sequence.update(self.conversation, self.audio)
-        self.assertEqual(self.conversation.send_user_message.call_count, 2)
+        self.assertEqual(self.conversation.send_user_message.call_count, 1)
         self.conversation.send_user_message.assert_called_with(MODERATE_EVENT)
         self.robot.send_score.assert_called_once_with(50, synthetic=True)
         self.robot.show_message.assert_called_with("Feeling drowsy?")
@@ -89,10 +86,9 @@ class PresentationTests(unittest.TestCase):
         self.assertIn("Only if they affirm", MODERATE_EVENT)
         self.assertIn("If they deny", MODERATE_EVENT)
 
-    def test_start_has_one_checklist_question_and_exact_completion(self):
-        self.assertEqual(len(RobotDisplay.QUESTIONS), 1)
-        self.assertNotIn("Are you feeling alert and ready", START_EVENT)
-        self.assertIn("Preflight checklist complete.", START_EVENT)
+    def test_start_is_a_greeting_not_a_checklist(self):
+        self.assertIn("Hello, I'm ivisyx, your pilot-support companion.", START_EVENT)
+        self.assertNotIn("Have you reviewed", START_EVENT)
         self.assertIn("Say exactly: Moderate drowsiness detected.", MODERATE_EVENT)
 
     def test_preview_waits_for_drowsiness_answer_acknowledgement(self):
@@ -104,12 +100,26 @@ class PresentationTests(unittest.TestCase):
             self.assertTrue(self.sequence.dialogue_complete)
 
     def test_retries_start_when_socket_not_ready(self):
+        self.audio.has_received_audio = False
         self.sequence.begin()
+        self.sequence._began_at -= 6
         self.conversation.send_user_message.side_effect = [RuntimeError("Not connected"), None]
         self.sequence.update(self.conversation, self.audio)
         self.assertFalse(self.sequence.start_sent)
         self.sequence.update(self.conversation, self.audio)
         self.assertTrue(self.sequence.start_sent)
+
+    def test_fallback_greeting_must_play_before_alert(self):
+        self.audio.has_received_audio = False
+        self.sequence.begin()
+        self.sequence._began_at -= 6
+        self.sequence.update(self.conversation, self.audio)
+        self.sequence.update(self.conversation, self.audio)
+        self.conversation.send_user_message.assert_called_once_with(START_EVENT)
+        self.audio.has_received_audio = True
+        self.audio.camera_window_available.return_value = True
+        self.sequence.update(self.conversation, self.audio)
+        self.conversation.send_user_message.assert_called_with(MODERATE_EVENT)
 
     def test_real_scores_are_not_accepted_as_scripted(self):
         bridge = CoreS3Bridge(SerialFixture())

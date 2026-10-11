@@ -27,8 +27,8 @@ def main():
             if offset == CHUNK_BYTES:
                 print("MAGENTA / TALK:", robot.lights_status(), flush=True)
         robot.drain_playback()
-        robot.show_checklist(2)
-        print("GREEN / COMPLETE:", robot.lights_status(), flush=True)
+        robot.show_message("Pilot support ready")
+        print("GREEN / READY:", robot.lights_status(), flush=True)
         time.sleep(4)
         robot.show_message("Put on ivisyx glasses")
         print("ORANGE / GLASSES:", robot.lights_status(), flush=True)

@@ -81,7 +81,7 @@ def main() -> None:
     parser.add_argument("--rotate", type=int, choices=(0, 90, 180, 270), default=0)
     parser.add_argument("--drowsiness", action="store_true", help="Show only eyelid points and demonstration metrics")
     parser.add_argument("--agent", action="store_true", help="Use CoreS3 microphone/speaker for ElevenLabs and send sustained eyelid alerts")
-    parser.add_argument("--presentation", action="store_true", help="Power-button tilt, one-question check-in and synthetic alert")
+    parser.add_argument("--presentation", action="store_true", help="Power-button face search, greeting and synthetic alert")
     args = parser.parse_args()
     if args.presentation:
         args.agent = args.drowsiness = True

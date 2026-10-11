@@ -1,14 +1,10 @@
-"""Map the single preflight question to the robot display."""
+"""Map agent reminders to the robot display; legacy checklist commands remain compatible."""
 
 import re
 import threading
 
 
 class RobotDisplay:
-    QUESTIONS = (
-        "have you reviewed your aircraft s approved preflight checklist",
-    )
-
     def __init__(self, robot):
         self.robot = robot
         self._lock = threading.RLock()
@@ -22,19 +18,8 @@ class RobotDisplay:
 
     def agent_response(self, text):
         print(f"ivisyx: {text}", flush=True)
-        # These are exact preset question matches, not guesses based on a user's "yes".
         normalized = " ".join(re.sub(r"[^a-z0-9 ]", " ", text.lower()).split())
         with self._lock:
-            step = 2 if any(phrase in normalized for phrase in (
-                "preflight checklist complete", "preflight check in complete"
-            )) else None
-            for index, question in enumerate(self.QUESTIONS):
-                if question in normalized:
-                    step = index
-                    break
-            if step is not None and step != self.step:
-                self.robot.show_checklist(step)
-                self.step = step
             if "put on" in normalized and "glasses" in normalized:
                 self.set_message("Put on ivisyx glasses")
             elif "are you feeling drowsy" in normalized:

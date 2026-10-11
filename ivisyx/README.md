@@ -24,10 +24,10 @@ The head stays still until the glasses-triggered return. Restart the launcher
 to run another startup search; tracking does not resume after the dialogue.
 
 Both side bars pulse yellow during face search, cyan while the microphone is
-on, magenta while speaking, green after checklist completion, and orange when
+on, magenta while speaking, green when ready between audio activity, and orange when
 the glasses reminder is displayed. Speech overrides green; orange overrides
 speech and mic status until the reminder changes. Stopping the app turns the
-lights off. Green confirms checklist progress only, not fitness to fly.
+lights off. Green indicates readiness of the companion, not fitness to fly.
 
 When the agent requests ivisyx glasses, the orange reminder also triggers a
 slow return of both servos to their measured positions before the startup
@@ -52,12 +52,9 @@ This commands the tilt and bounded search immediately, without a button press
 or ElevenLabs connection. It saves no images or audio and releases motor power
 on exit. Physical angle and audible quality still require human confirmation.
 
-ivisyx begins a single-question pilot-support preflight check-in:
-
-1. Have you reviewed your aircraft's approved preflight checklist?
-
-After your confirmation, ivisyx says
-"Preflight checklist complete." Python then sends a scripted 50/100 event:
+ivisyx greets you: "Hello, I'm ivisyx, your pilot-support companion."
+There is no checklist or checklist-completion announcement. After the greeting
+finishes playing, Python sends a scripted 50/100 event:
 "Moderate drowsiness detected. Are you feeling drowsy?"
 The agent waits for your answer. If you affirm drowsiness, it says
 "Please put on your ivisyx glasses. Follow your approved fatigue procedures."
@@ -65,9 +62,9 @@ If you deny drowsiness, it acknowledges the test without recommending glasses.
 An unclear answer prompts the question again, not a glasses instruction.
 The display marks this score TEST. It is not derived from the camera and is
 never used by the live eyelid monitor. Glasses do not treat fatigue or certify
-readiness to fly. The single-question check-in is not an aircraft checklist.
+readiness to fly.
 
-The screen shows the checklist item beside a 144x108 camera thumbnail with green
+The screen shows pilot-support status beside a 144x108 camera thumbnail with green
 tracked-eye points. Updates are limited to roughly one per second and pause
 during speech; stale images are labeled EYES: PAUSED. The reminder stays below.
 In presentation mode tracking stops once the face is acquired (or the search
@@ -78,9 +75,8 @@ Audio uses only Stack-chan's microphone and speaker. Motor power is released
 on exit or after loss of the application's button-status heartbeat.
 
 Paste `agent_prompt.txt` into ElevenLabs and change its separate First Message
-to: "I'm ivisyx. Shall we begin your preflight check-in?" If you configured the
-`update_robot_display` client tool, use checklist_step -1 (idle), 0 (question),
-or 2 (complete). Step 1 is retained for protocol compatibility but is unused.
+to: "Hello, I'm ivisyx, your pilot-support companion." If you configured the
+`update_robot_display` client tool, use only the optional message parameter.
 The local client does not update your ElevenLabs dashboard configuration.
 If the agent still says the old demo greeting, ensure the new configuration
 is published on the branch serving live traffic, not merely saved in a draft.
@@ -146,7 +142,7 @@ own the robot's USB port. This first milestone runs vision separately from voice
 The Mac window shows the actual CoreS3 camera image, tracked face points, yellow
 eye contours, tracking status, and measured frame rate. No laptop webcam is used.
 Close the window or press Escape to release the camera, then run `run_cores3.py`
-for the original agent conversation again. The robot shows audio status, the single-question preflight check-in, and a reminder area.
+for the original agent conversation again. The robot shows audio status, pilot-support status, and a reminder area.
 
 Vision setup (already installed on this Mac):
 
@@ -176,7 +172,7 @@ CoreS3 microphones -> USB -> Python/ElevenLabs -> USB -> CoreS3 speaker
 Microphone and playback activity -> CoreS3 status display
 ```
 
-The Mac runs ElevenLabs and holds the environment configuration. The CoreS3 captures and plays 16 kHz signed 16-bit mono audio. Its screen displays audio status above a single-question preflight check-in and a reminder area. Launchers do not fall back to Mac audio if the robot is unavailable.
+The Mac runs ElevenLabs and holds the environment configuration. The CoreS3 captures and plays 16 kHz signed 16-bit mono audio. Its screen displays audio status above pilot-support status and a reminder area. Launchers do not fall back to Mac audio if the robot is unavailable.
 
 ## 1. Open in PyCharm
 
@@ -229,11 +225,11 @@ Never hardcode the API key in Python. `.env` is ignored by Git.
 
 Use agent `agent_5801m4k7sc11f9htwjbpcw7bnm4x` in ElevenLabs. Set its name to **ivisyx** and its system
 prompt to the contents of `agent_prompt.txt`. That prompt includes concise replies,
-the single-question preflight check-in, and handling for `ivisyx simulation sensor event:`
+the greeting, scripted moderate alert, and handling for `ivisyx simulation sensor event:`
 alerts. Set the separate First Message field to:
 
 ```text
-I'm ivisyx. Shall we begin your preflight check-in?
+Hello, I'm ivisyx, your pilot-support companion.
 ```
 
 The agent ID and local environment settings remain unchanged. The original
@@ -241,26 +237,24 @@ project directory path is retained to keep PyCharm's interpreter working.
 
 For both audio interfaces, configure input and output audio as **PCM 16 kHz** in the agent settings. If the agent is private, add your API key directly to the local `.env` file. Do not paste it into chat.
 
-### Checklist, reminders, and speech lights
+### Reminders and stage lights
 
-The screen starts with "Pilot support ready" and an unstarted checklist. Say
-"start checklist" to begin. The exact preset questions in `agent_prompt.txt`
-advance the highlighted item; the completion phrase marks both items done.
-This phrase-based fallback requires no extra ElevenLabs tool setup.
+The screen starts with "Pilot support ready". The presentation greets you and
+asks about drowsiness without any checklist. Agent reminders update the display
+without requiring a client tool.
 
 For explicit screen updates, add a **client tool** named `update_robot_display`
 to the ElevenLabs agent, with these optional parameters:
 
-- `checklist_step`: integer, -1 for not started, 0 for the question, 2 for complete.
 - `message`: string, a short reminder, or an empty string to clear it.
 
-Description: "Update the robot's single-question preflight check-in and short reminder."
+Description: "Update the robot's short reminder."
 Enable waiting for the tool response. Python registers the matching handler
 locally; it does not create the tool in the ElevenLabs dashboard. Paste the
 updated prompt into the agent to enable its tool instructions.
 
-Both six-LED side bars use a mirrored cyan/pink wave during actual speaker
-playback, then switch off. The screen says MIC ON during robot microphone
+Both six-LED side bars use the stage colors described above.
+The screen says MIC ON during robot microphone
 capture; CoreS3 audio uses the actual speaker playback state. Servos are only
 commanded by the armed presentation launcher. The firmware enables the body's 5 V output for the LED bars.
 
@@ -282,7 +276,7 @@ The robot must be connected; there is no Mac audio fallback.
 
 ## 6. Connect Stack-chan over USB
 
-The local `.env` contains the detected CoreS3 port `/dev/cu.usbmodem1101`. The firmware shows audio status, a single-question check-in, reminders, and an annotated camera thumbnail when tracking runs. Conversation transcripts remain on the Mac. The new thumbnail layout requires a physical visual check.
+The local `.env` contains the detected CoreS3 port `/dev/cu.usbmodem1101`. The firmware shows audio status, pilot-support status, reminders, and an annotated camera thumbnail when tracking runs. Conversation transcripts remain on the Mac. The new thumbnail layout requires a physical visual check.
 
 1. Open `arduino/StackChanIvisyx/StackChanIvisyx.ino` in Arduino IDE.
 2. Install/select the M5Stack CoreS3 board support and the `M5Unified`, `M5GFX`, `M5CoreS3`, and `M5StackChan` libraries. Use USB Mode **Hardware CDC and JTAG**, with USB CDC On Boot **Enabled**.
@@ -308,7 +302,7 @@ PYTHONPATH=src .venv/bin/python -m ivisyx.serial_smoke_test
 
 The test requires a firmware acknowledgement for each expression and reports rejected commands or missing replies as errors. It ends by verifying the neutral expression.
 
-Then run the voice assistant again. The screen shows audio activity, single-question check-in progress, and a reminder. Tracking launchers add the annotated eye-camera thumbnail. Expression commands remain compatible but do not change the screen. The `status` serial command reports display mode, audio activity, checklist step, reminder, and audio sample counters. `lights:status` reports LED controller and power diagnostics. The presentation launcher explicitly arms the button-triggered pitch motion. Uploading replaces the board's current application.
+Then run the voice assistant again. The screen shows audio activity, pilot-support status, and a reminder. Tracking launchers add the annotated eye-camera thumbnail. Expression commands remain compatible but do not change the screen. The `status` serial command reports display mode, audio activity, checklist step, reminder, and audio sample counters. `lights:status` reports LED controller and power diagnostics. The presentation launcher explicitly arms the button-triggered pitch motion. Uploading replaces the board's current application.
 
 ## 7. Run with CoreS3 audio
 
@@ -362,5 +356,5 @@ to absorb initial network jitter. Small fragments are combined before USB
 transfer; short replies flush at the timeout. Camera transfers wait while
 buffered speech is in flight, and playback drains before the microphone resumes.
 The presentation waits for the automatic greeting to finish before sending
-START, so the checklist command does not interrupt the first message.
+the moderate alert, so it does not interrupt the first message.
 If no greeting arrives, START is sent after five seconds.

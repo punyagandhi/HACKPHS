@@ -3,10 +3,9 @@
 import time
 
 START_EVENT = (
-    "ivisyx presentation control: START. Begin a one-question preflight check-in now. "
-    "Ask exactly: Have you reviewed your aircraft's approved preflight checklist? "
-    "Wait for confirmation, then say exactly: Preflight checklist complete. "
-    "Do not add other checklist items. Keep each reply short."
+    "ivisyx presentation control: START. Say exactly: Hello, I'm ivisyx, your pilot-support companion. "
+    "Do not ask a checklist question or announce checklist completion. "
+    "Wait for the Python sensor event before mentioning drowsiness."
 )
 MODERATE_EVENT = (
     "ivisyx presentation sensor event: SYNTHETIC, NOT A CAMERA MEASUREMENT. "
@@ -33,7 +32,7 @@ class PresentationSequence:
     def begin(self):
         self.started = True
         self._began_at = time.monotonic()
-        self.display.update_tool({"checklist_step": -1, "message": "PRESENTATION MODE"})
+        self.display.set_message("Pilot support ready")
 
     @property
     def tracking_paused(self):
@@ -53,6 +52,8 @@ class PresentationSequence:
             if audio.has_received_audio:
                 if not audio.camera_window_available():
                     return
+                self.start_sent = True
+                return
             elif time.monotonic() - self._began_at < 5:
                 return
             try:
@@ -60,7 +61,7 @@ class PresentationSequence:
             except RuntimeError:
                 return
             self.start_sent = True
-        elif not self.alert_sent and self.display.step == 2 and audio.camera_window_available():
+        elif not self.alert_sent and audio.has_received_audio and audio.camera_window_available():
             conversation.send_user_message(MODERATE_EVENT)
             self.alert_sent = True
             self.display.set_message("Feeling drowsy?")
