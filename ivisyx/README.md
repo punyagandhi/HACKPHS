@@ -314,3 +314,11 @@ Audio protocol v2 queues alternating persistent PCM buffers on the CoreS3 so
 the next packet is ready before playback ends. `ok:playq` means accepted, not
 finished; `drain` waits for the playback tail. Sample counters count accepted
 samples. Protocol v1 remains supported by Python for older firmware.
+
+Speech starts with up to 750 ms of prebuffering (or 750 ms of accumulated PCM)
+to absorb initial network jitter. Small fragments are combined before USB
+transfer; short replies flush at the timeout. Camera transfers wait while
+buffered speech is in flight, and playback drains before the microphone resumes.
+The presentation waits for the automatic greeting to finish before sending
+START, so the checklist command does not interrupt the first message.
+If no greeting arrives, START is sent after five seconds.

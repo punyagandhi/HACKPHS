@@ -13,6 +13,8 @@ from ivisyx.stackchan import Expression, StackChan, StackChanCommand
 
 SAMPLE_RATE = 16000
 CHUNK_BYTES = 8000
+PREBUFFER_BYTES = CHUNK_BYTES * 3
+PREBUFFER_SECONDS = 0.75
 
 
 class CoreS3Bridge(StackChan):
@@ -163,6 +165,7 @@ class CoreS3AudioInterface(AudioInterface):
         self._state_lock = threading.Lock()
         self._stopping = False
         self._last_output = 0.0
+        self._playback_active = False
 
     def start(self, input_callback: Callable[[bytes], None]) -> None:
         self.bridge.verify_audio()
@@ -206,7 +209,31 @@ class CoreS3AudioInterface(AudioInterface):
 
     def camera_window_available(self) -> bool:
         with self._queue_lock:
-            return self._queue.empty() and time.monotonic() - self._last_output >= 1.0
+            return (not self._playback_active and self._queue.empty()
+                    and time.monotonic() - self._last_output >= 1.0)
+
+    @property
+    def has_received_audio(self) -> bool:
+        with self._queue_lock:
+            return self._last_output > 0
+
+    def _collect_audio(self, generation: int, pcm: bytes, *, startup: bool) -> tuple[int, bytes]:
+        # Accumulate network fragments before USB playback to absorb startup jitter.
+        target = PREBUFFER_BYTES if startup else CHUNK_BYTES
+        deadline = time.monotonic() + (PREBUFFER_SECONDS if startup else 0.12)
+        buffered = bytearray(pcm)
+        while len(buffered) < target and not self._stop.is_set():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            try:
+                next_generation, fragment = self._queue.get(timeout=remaining)
+            except queue.Empty:
+                break
+            if next_generation != generation:
+                return next_generation, fragment
+            buffered.extend(fragment)
+        return generation, bytes(buffered)
 
     def _run(self, callback: Callable[[bytes], None]) -> None:
         was_playing = False
@@ -219,6 +246,10 @@ class CoreS3AudioInterface(AudioInterface):
                         if not self._stop.is_set():
                             callback(bytes(CHUNK_BYTES))
                         continue
+                    if was_playing:
+                        self.bridge.drain_playback()
+                    with self._queue_lock:
+                        self._playback_active = False
                     pcm = self.bridge.capture()
                     if not self._stop.is_set():
                         callback(pcm)
@@ -226,11 +257,18 @@ class CoreS3AudioInterface(AudioInterface):
                     continue
                 if generation != self._generation or self._stop.is_set():
                     continue
-                self.bridge.play(pcm)
+                with self._queue_lock:
+                    self._playback_active = True
+                generation, pcm = self._collect_audio(generation, pcm, startup=not was_playing)
+                for offset in range(0, len(pcm), CHUNK_BYTES):
+                    if generation != self._generation or self._stop.is_set():
+                        break
+                    packet = pcm[offset:offset + CHUNK_BYTES]
+                    self.bridge.play(packet)
+                    # Keep the service's input clock advancing without speaker echo.
+                    if not self._stop.is_set():
+                        callback(bytes(len(packet)))
                 was_playing = True
-                # Keep the service's input clock advancing without speaker echo.
-                if not self._stop.is_set():
-                    callback(bytes(len(pcm)))
         except Exception as exc:
             self.error = exc
             self._stop.set()

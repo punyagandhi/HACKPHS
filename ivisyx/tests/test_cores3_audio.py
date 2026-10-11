@@ -1,8 +1,9 @@
+import queue
 import threading
 import unittest
 from unittest.mock import MagicMock, patch
 
-from ivisyx.cores3_audio import CHUNK_BYTES, CoreS3AudioInterface, CoreS3Bridge
+from ivisyx.cores3_audio import CHUNK_BYTES, PREBUFFER_BYTES, CoreS3AudioInterface, CoreS3Bridge
 from ivisyx.stackchan import StackChanCommand
 
 
@@ -93,6 +94,52 @@ class AudioProtocolTests(unittest.TestCase):
 
 
 class AudioLifecycleTests(unittest.TestCase):
+    def test_startup_combines_fragments_before_playback(self):
+        audio = CoreS3AudioInterface(MagicMock())
+        first = b"\x01\x00" * 100
+        rest = b"\x02\x00" * ((PREBUFFER_BYTES - len(first)) // 2)
+        audio.output(rest)
+        generation, pcm = audio._collect_audio(0, first, startup=True)
+        self.assertEqual(generation, 0)
+        self.assertEqual(pcm, first + rest)
+
+    def test_short_greeting_flushes_after_bounded_wait(self):
+        audio = CoreS3AudioInterface(MagicMock())
+        with patch.object(audio._queue, "get", side_effect=queue.Empty):
+            self.assertEqual(audio._collect_audio(0, b"\x01\x00", startup=True),
+                             (0, b"\x01\x00"))
+
+    def test_prebuffer_is_sent_in_bounded_usb_packets_without_loss(self):
+        bridge = MagicMock()
+        audio = CoreS3AudioInterface(bridge)
+        pcm = bytes(range(256)) * (PREBUFFER_BYTES // 256) + bytes(range(PREBUFFER_BYTES % 256))
+        for offset in range(0, len(pcm), 200):
+            audio.output(pcm[offset:offset + 200])
+        callbacks = []
+
+        def callback(data):
+            callbacks.append(data)
+            if len(callbacks) == 3:
+                audio._stop.set()
+
+        audio._run(callback)
+        packets = [call.args[0] for call in bridge.play.call_args_list]
+        self.assertEqual([len(packet) for packet in packets], [CHUNK_BYTES] * 3)
+        self.assertEqual(b"".join(packets), pcm)
+        bridge.capture.assert_not_called()
+
+    def test_interruption_does_not_merge_old_and_new_speech(self):
+        audio = CoreS3AudioInterface(MagicMock())
+        audio.interrupt()
+        audio.output(b"\x02\x00")
+        self.assertEqual(audio._collect_audio(0, b"\x01\x00", startup=True),
+                         (1, b"\x02\x00"))
+
+    def test_camera_waits_while_buffered_audio_is_in_flight(self):
+        audio = CoreS3AudioInterface(MagicMock())
+        audio._playback_active = True
+        self.assertFalse(audio.camera_window_available())
+
     def test_camera_pauses_during_reply_and_tail(self):
         audio = CoreS3AudioInterface(MagicMock())
         with patch("ivisyx.cores3_audio.time.monotonic", return_value=10):

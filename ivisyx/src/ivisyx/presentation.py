@@ -1,5 +1,7 @@
 """Explicitly synthetic presentation events, separate from camera measurements."""
 
+import time
+
 START_EVENT = (
     "ivisyx presentation control: START. Begin a one-question preflight check-in now. "
     "Ask exactly: Have you reviewed your aircraft's approved preflight checklist? "
@@ -26,9 +28,11 @@ class PresentationSequence:
         self.started = False
         self.start_sent = False
         self.alert_sent = False
+        self._began_at = 0.0
 
     def begin(self):
         self.started = True
+        self._began_at = time.monotonic()
         self.display.update_tool({"checklist_step": -1, "message": "PRESENTATION MODE"})
 
     @property
@@ -41,6 +45,12 @@ class PresentationSequence:
         if not self.started:
             return
         if not self.start_sent:
+            # A START user-message can interrupt the agent's automatic greeting.
+            if audio.has_received_audio:
+                if not audio.camera_window_available():
+                    return
+            elif time.monotonic() - self._began_at < 5:
+                return
             try:
                 conversation.send_user_message(START_EVENT)
             except RuntimeError:

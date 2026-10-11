@@ -1,6 +1,6 @@
 import unittest
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from ivisyx.presentation import MODERATE_EVENT, START_EVENT, PresentationSequence
 from ivisyx.robot_display import RobotDisplay
@@ -20,6 +20,26 @@ class PresentationTests(unittest.TestCase):
     def test_no_scripted_event_before_button(self):
         self.sequence.update(self.conversation, self.audio)
         self.conversation.send_user_message.assert_not_called()
+
+    def test_start_waits_for_greeting_to_finish(self):
+        self.sequence.begin()
+        self.audio.has_received_audio = True
+        self.audio.camera_window_available.return_value = False
+        self.sequence.update(self.conversation, self.audio)
+        self.conversation.send_user_message.assert_not_called()
+        self.audio.camera_window_available.return_value = True
+        self.sequence.update(self.conversation, self.audio)
+        self.conversation.send_user_message.assert_called_once_with(START_EVENT)
+
+    def test_no_greeting_falls_back_after_five_seconds(self):
+        self.audio.has_received_audio = False
+        with patch("ivisyx.presentation.time.monotonic", return_value=10):
+            self.sequence.begin()
+            self.sequence.update(self.conversation, self.audio)
+        self.conversation.send_user_message.assert_not_called()
+        with patch("ivisyx.presentation.time.monotonic", return_value=15):
+            self.sequence.update(self.conversation, self.audio)
+        self.conversation.send_user_message.assert_called_once_with(START_EVENT)
 
     def test_one_question_before_synthetic_alert(self):
         self.sequence.begin()
