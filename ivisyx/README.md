@@ -19,7 +19,9 @@ The yaw search requires the updated firmware and valid position-mode servo
 limits. It never changes servo mode, calibration, or EEPROM limits. Keep the
 robot on a stable surface with clearance for both tilt and the small sweep.
 This is startup acquisition only, not continuous face following. During the
-checklist and drowsiness question, the head stays still and camera updates pause.
+conversation, camera capture, landmark inference, and preview updates stay paused.
+The head stays still until the glasses-triggered return. Restart the launcher
+to run another startup search; tracking does not resume after the dialogue.
 
 Both side bars pulse yellow during face search, cyan while the microphone is
 on, magenta while speaking, green after checklist completion, and orange when
@@ -68,9 +70,10 @@ readiness to fly. The single-question check-in is not an aircraft checklist.
 The screen shows the checklist item beside a 144x108 camera thumbnail with green
 tracked-eye points. Updates are limited to roughly one per second and pause
 during speech; stale images are labeled EYES: PAUSED. The reminder stays below.
-In presentation mode the thumbnail also pauses through the single-question
-conversation and drowsiness question to keep microphone capture continuous,
-and resumes after the agent acknowledges your answer.
+In presentation mode tracking stops once the face is acquired (or the search
+times out). The last thumbnail stays on screen with EYES: PAUSED; no new camera
+frames or landmarks are processed during or after the conversation. This keeps
+microphone capture continuous. The separate live eyelid-monitor launcher is unchanged.
 Audio uses only Stack-chan's microphone and speaker. Motor power is released
 on exit or after loss of the application's button-status heartbeat.
 

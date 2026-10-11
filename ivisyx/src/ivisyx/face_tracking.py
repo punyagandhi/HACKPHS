@@ -163,6 +163,8 @@ def main() -> None:
                 cv2.resizeWindow(WINDOW, 960, 720)
             print("CoreS3 face tracking started. Face the robot camera; close the window or press Escape to stop.", flush=True)
             while not args.seconds or time.monotonic() - started < args.seconds:
+                if robot_audio is not None and robot_audio.error:
+                    raise RuntimeError("Stack-chan audio failed; no Mac audio fallback.") from robot_audio.error
                 if sequence is not None:
                     button = camera.presentation_status()
                     if button["presses"] != last_button and not sequence.started:
@@ -173,8 +175,10 @@ def main() -> None:
                         acquisition.begin(time.monotonic())
                         agent_status = "Looking for face / speech paused"
                     sequence.update(conversation, robot_audio)
-                    if conversation_started and not sequence.dialogue_complete:
+                    if sequence.tracking_paused:
                         if not args.headless and cv2.waitKey(1) & 0xFF in (27, ord("q")):
+                            break
+                        if not args.headless and cv2.getWindowProperty(WINDOW, cv2.WND_PROP_VISIBLE) < 1:
                             break
                         time.sleep(.05)
                         continue
@@ -185,8 +189,6 @@ def main() -> None:
                     time.sleep(.05)
                     continue
                 if robot_audio is not None:
-                    if robot_audio.error:
-                        raise RuntimeError("Stack-chan audio failed; no Mac audio fallback.") from robot_audio.error
                     # Do not insert camera pauses into queued speech playback.
                     if not robot_audio.camera_window_available():
                         if not args.headless and cv2.waitKey(1) & 0xFF in (27, ord("q")):

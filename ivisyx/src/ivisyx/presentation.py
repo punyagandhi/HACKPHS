@@ -36,6 +36,10 @@ class PresentationSequence:
         self.display.update_tool({"checklist_step": -1, "message": "PRESENTATION MODE"})
 
     @property
+    def tracking_paused(self):
+        return self.started
+
+    @property
     def dialogue_complete(self):
         return self.alert_sent and self.display.message in (
             "Put on ivisyx glasses", "Alert acknowledged"

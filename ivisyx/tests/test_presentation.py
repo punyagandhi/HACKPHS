@@ -21,6 +21,15 @@ class PresentationTests(unittest.TestCase):
         self.sequence.update(self.conversation, self.audio)
         self.conversation.send_user_message.assert_not_called()
 
+    def test_tracking_runs_only_before_conversation_starts(self):
+        self.assertFalse(self.sequence.tracking_paused)
+        self.sequence.begin()
+        self.assertTrue(self.sequence.tracking_paused)
+        self.sequence.alert_sent = True
+        for message in ("Feeling drowsy?", "Put on ivisyx glasses", "Alert acknowledged"):
+            self.display.set_message(message)
+            self.assertTrue(self.sequence.tracking_paused)
+
     def test_start_waits_for_greeting_to_finish(self):
         self.sequence.begin()
         self.audio.has_received_audio = True
