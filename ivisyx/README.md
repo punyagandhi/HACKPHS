@@ -16,8 +16,13 @@ ivisyx begins a two-item pilot-support preflight check-in:
 1. Have you reviewed your aircraft's approved preflight checklist?
 2. Are you feeling alert and ready?
 
-Answer each question. After both confirmations, Python sends a scripted
-50/100 moderate-drowsiness event and ivisyx asks you to put on glasses.
+Answer each question. After both confirmations, ivisyx says
+"Preflight checklist complete." Python then sends a scripted 50/100 event:
+"Presentation test: moderate drowsiness detected. Are you feeling drowsy?"
+The agent waits for your answer. If you affirm drowsiness, it says
+"Please put on your ivisyx glasses. Follow your approved fatigue procedures."
+If you deny drowsiness, it acknowledges the test without recommending glasses.
+An unclear answer prompts the question again, not a glasses instruction.
 The display marks this score TEST. It is not derived from the camera and is
 never used by the live eyelid monitor. Glasses do not treat fatigue or certify
 readiness to fly. The two-item check-in is not an aircraft checklist.
@@ -26,7 +31,8 @@ The screen shows these two items beside a 144x108 camera thumbnail with green
 tracked-eye points. Updates are limited to roughly one per second and pause
 during speech; stale images are labeled EYES: PAUSED. The reminder stays below.
 In presentation mode the thumbnail also pauses through the two-question
-conversation to keep microphone capture continuous, and resumes after the alert.
+conversation and drowsiness question to keep microphone capture continuous,
+and resumes after the agent acknowledges your answer.
 Audio uses only Stack-chan's microphone and speaker. Motor power is released
 on exit or after loss of the application's button-status heartbeat.
 

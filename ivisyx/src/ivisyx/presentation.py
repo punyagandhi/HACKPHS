@@ -4,13 +4,17 @@ START_EVENT = (
     "ivisyx presentation control: START. Begin a two-item pilot preflight check-in now. "
     "Ask exactly: Have you reviewed your aircraft's approved preflight checklist? "
     "Wait for confirmation, then ask exactly: Are you feeling alert and ready? "
-    "Wait again, then say exactly: Preflight check-in complete. "
+    "Wait again, then say exactly: Preflight checklist complete. "
     "Do not add other checklist items. Keep each reply short."
 )
 MODERATE_EVENT = (
     "ivisyx presentation sensor event: SYNTHETIC, NOT A CAMERA MEASUREMENT. "
     "The scripted drowsiness score is 50/100, MODERATE. Say exactly: "
-    "Presentation alert: moderate drowsiness score. Please put on your glasses. "
+    "Presentation test: moderate drowsiness detected. Are you feeling drowsy? "
+    "Wait for the pilot's answer. Only if they affirm feeling drowsy, say exactly: "
+    "Please put on your ivisyx glasses. Follow your approved fatigue procedures. "
+    "If they deny drowsiness, say: Understood. This is a test alert only. "
+    "If their answer is unclear, ask: Are you feeling drowsy? "
     "Never claim this score measures the pilot or that glasses treat fatigue."
 )
 
@@ -26,6 +30,12 @@ class PresentationSequence:
         self.started = True
         self.display.update_tool({"checklist_step": -1, "message": "PRESENTATION MODE"})
 
+    @property
+    def dialogue_complete(self):
+        return self.alert_sent and self.display.message in (
+            "Put on ivisyx glasses", "Test alert acknowledged"
+        )
+
     def update(self, conversation, audio):
         if not self.started:
             return
@@ -38,5 +48,5 @@ class PresentationSequence:
         elif not self.alert_sent and self.display.step == 2 and audio.camera_window_available():
             conversation.send_user_message(MODERATE_EVENT)
             self.alert_sent = True
-            self.display.set_message("Put on glasses")
+            self.display.set_message("Feeling drowsy?")
             self.display.robot.send_score(50, synthetic=True)

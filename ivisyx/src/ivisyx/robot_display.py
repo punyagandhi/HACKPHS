@@ -26,7 +26,9 @@ class RobotDisplay:
         # These are exact preset question matches, not guesses based on a user's "yes".
         normalized = " ".join(re.sub(r"[^a-z0-9 ]", " ", text.lower()).split())
         with self._lock:
-            step = 2 if "preflight check in complete" in normalized else None
+            step = 2 if any(phrase in normalized for phrase in (
+                "preflight checklist complete", "preflight check in complete"
+            )) else None
             for index, question in enumerate(self.QUESTIONS):
                 if question in normalized:
                     step = index
@@ -35,7 +37,11 @@ class RobotDisplay:
                 self.robot.show_checklist(step)
                 self.step = step
             if "put on" in normalized and "glasses" in normalized:
-                self.set_message("Put on glasses")
+                self.set_message("Put on ivisyx glasses")
+            elif "are you feeling drowsy" in normalized:
+                self.set_message("Feeling drowsy?")
+            elif "this is a test alert only" in normalized:
+                self.set_message("Test alert acknowledged")
 
     def set_message(self, message):
         with self._lock:

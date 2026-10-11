@@ -172,7 +172,7 @@ def main() -> None:
                         conversation_started = True
                         agent_status = "Presentation / Stack-chan audio"
                     sequence.update(conversation, robot_audio)
-                    if conversation_started and not sequence.alert_sent:
+                    if conversation_started and not sequence.dialogue_complete:
                         if not args.headless and cv2.waitKey(1) & 0xFF in (27, ord("q")):
                             break
                         time.sleep(.05)

@@ -30,7 +30,7 @@ class PresentationTests(unittest.TestCase):
             self.display.agent_response(question)
             self.sequence.update(self.conversation, self.audio)
         self.assertFalse(self.sequence.alert_sent)
-        self.display.agent_response("Preflight check-in complete.")
+        self.display.agent_response("Preflight checklist complete.")
         self.audio.camera_window_available.return_value = False
         self.sequence.update(self.conversation, self.audio)
         self.assertFalse(self.sequence.alert_sent)
@@ -40,7 +40,34 @@ class PresentationTests(unittest.TestCase):
         self.assertEqual(self.conversation.send_user_message.call_count, 2)
         self.conversation.send_user_message.assert_called_with(MODERATE_EVENT)
         self.robot.send_score.assert_called_once_with(50, synthetic=True)
-        self.robot.show_message.assert_called_with("Put on glasses")
+        self.robot.show_message.assert_called_with("Feeling drowsy?")
+
+    def test_glasses_reminder_follows_agent_affirmative_branch(self):
+        self.display.agent_response("Presentation test: moderate drowsiness detected. Are you feeling drowsy?")
+        self.display.user_transcript("yes")
+        self.robot.show_message.assert_called_once_with("Feeling drowsy?")
+        self.display.agent_response("Please put on your ivisyx glasses. Follow your approved fatigue procedures.")
+        self.robot.show_message.assert_called_with("Put on ivisyx glasses")
+
+    def test_negative_answer_does_not_show_glasses(self):
+        self.display.agent_response("Presentation test: moderate drowsiness detected. Are you feeling drowsy?")
+        self.display.user_transcript("no")
+        self.display.agent_response("Understood. This is a test alert only.")
+        self.robot.show_message.assert_called_with("Test alert acknowledged")
+        self.assertNotIn("Put on ivisyx glasses", [call.args[0] for call in self.robot.show_message.call_args_list])
+
+    def test_event_instructs_agent_to_wait_for_answer(self):
+        self.assertIn("Wait for the pilot's answer", MODERATE_EVENT)
+        self.assertIn("Only if they affirm", MODERATE_EVENT)
+        self.assertIn("If they deny", MODERATE_EVENT)
+
+    def test_preview_waits_for_drowsiness_answer_acknowledgement(self):
+        self.sequence.alert_sent = True
+        self.display.set_message("Feeling drowsy?")
+        self.assertFalse(self.sequence.dialogue_complete)
+        for message in ("Put on ivisyx glasses", "Test alert acknowledged"):
+            self.display.set_message(message)
+            self.assertTrue(self.sequence.dialogue_complete)
 
     def test_retries_start_when_socket_not_ready(self):
         self.sequence.begin()
