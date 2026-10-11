@@ -31,8 +31,8 @@ lights off. Green indicates readiness of the companion, not fitness to fly.
 
 When the agent requests ivisyx glasses, the orange reminder also triggers a
 slow return of both servos to their measured positions before the startup
-tilt/search. This runs once per armed presentation, not on the initial moderate
-alert or a negative drowsiness answer. No servo calibration is changed.
+tilt/search. This runs once per armed presentation, when the opening glasses
+suggestion is delivered. No servo calibration is changed.
 `home:status` reports saved starting positions, measured current positions,
 and whether the return command was accepted; acceptance alone is not proof
 that the physical head returned.
@@ -52,14 +52,13 @@ This commands the tilt and bounded search immediately, without a button press
 or ElevenLabs connection. It saves no images or audio and releases motor power
 on exit. Physical angle and audible quality still require human confirmation.
 
-ivisyx greets you: "Hello, I'm ivisyx, your pilot-support companion."
-There is no checklist or checklist-completion announcement. After the greeting
-finishes playing, Python sends a scripted 50/100 event:
-"Moderate drowsiness detected. Are you feeling drowsy?"
-The agent waits for your answer. If you affirm drowsiness, it says
-"Please put on your ivisyx glasses. Follow your approved fatigue procedures."
-If you deny drowsiness, it acknowledges the test without recommending glasses.
-An unclear answer prompts the question again, not a glasses instruction.
+After the face search, ivisyx starts directly with:
+"Moderate drowsiness detected. Please put on your ivisyx glasses. Follow your approved fatigue procedures."
+There is no greeting, checklist, or confirmation question. The scripted score
+is displayed immediately. If ElevenLabs delivers this First Message, Python
+does not repeat it. If no First Message arrives within five seconds, Python
+sends the alert as a fallback; an older opening is allowed to finish before
+the fallback is sent.
 The display marks this score TEST. It is not derived from the camera and is
 never used by the live eyelid monitor. Glasses do not treat fatigue or certify
 readiness to fly.
@@ -75,7 +74,7 @@ Audio uses only Stack-chan's microphone and speaker. Motor power is released
 on exit or after loss of the application's button-status heartbeat.
 
 Paste `agent_prompt.txt` into ElevenLabs and change its separate First Message
-to: "Hello, I'm ivisyx, your pilot-support companion." If you configured the
+to: "Moderate drowsiness detected. Please put on your ivisyx glasses. Follow your approved fatigue procedures." If you configured the
 `update_robot_display` client tool, use only the optional message parameter.
 The local client does not update your ElevenLabs dashboard configuration.
 If the agent still says the old demo greeting, ensure the new configuration
@@ -225,11 +224,11 @@ Never hardcode the API key in Python. `.env` is ignored by Git.
 
 Use agent `agent_5801m4k7sc11f9htwjbpcw7bnm4x` in ElevenLabs. Set its name to **ivisyx** and its system
 prompt to the contents of `agent_prompt.txt`. That prompt includes concise replies,
-the greeting, scripted moderate alert, and handling for `ivisyx simulation sensor event:`
+the direct scripted moderate alert and handling for `ivisyx simulation sensor event:`
 alerts. Set the separate First Message field to:
 
 ```text
-Hello, I'm ivisyx, your pilot-support companion.
+Moderate drowsiness detected. Please put on your ivisyx glasses. Follow your approved fatigue procedures.
 ```
 
 The agent ID and local environment settings remain unchanged. The original
@@ -239,8 +238,8 @@ For both audio interfaces, configure input and output audio as **PCM 16 kHz** in
 
 ### Reminders and stage lights
 
-The screen starts with "Pilot support ready". The presentation greets you and
-asks about drowsiness without any checklist. Agent reminders update the display
+The screen starts with "Pilot support ready". The presentation announces moderate
+drowsiness and suggests glasses directly. Agent reminders update the display
 without requiring a client tool.
 
 For explicit screen updates, add a **client tool** named `update_robot_display`
@@ -355,6 +354,6 @@ Speech starts with up to 750 ms of prebuffering (or 750 ms of accumulated PCM)
 to absorb initial network jitter. Small fragments are combined before USB
 transfer; short replies flush at the timeout. Camera transfers wait while
 buffered speech is in flight, and playback drains before the microphone resumes.
-The presentation waits for the automatic greeting to finish before sending
-the moderate alert, so it does not interrupt the first message.
-If no greeting arrives, START is sent after five seconds.
+The presentation does not interrupt or repeat a correctly configured opening
+alert. If an old opening plays, it finishes before the fallback alert is sent.
+If no First Message arrives, the direct alert is requested after five seconds.

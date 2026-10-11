@@ -2,7 +2,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from ivisyx.presentation import MODERATE_EVENT, START_EVENT, PresentationSequence
+from ivisyx.presentation import MODERATE_EVENT, PresentationSequence
 from ivisyx.robot_display import RobotDisplay
 from ivisyx.cores3_audio import CoreS3Bridge
 from ivisyx.face_tracking import robot_preview
@@ -20,17 +20,30 @@ class PresentationTests(unittest.TestCase):
     def test_no_scripted_event_before_button(self):
         self.sequence.update(self.conversation, self.audio)
         self.conversation.send_user_message.assert_not_called()
+        self.robot.send_score.assert_not_called()
 
-    def test_tracking_runs_only_before_conversation_starts(self):
+    def test_tracking_stays_paused_after_start(self):
         self.assertFalse(self.sequence.tracking_paused)
         self.sequence.begin()
         self.assertTrue(self.sequence.tracking_paused)
-        self.sequence.alert_sent = True
-        for message in ("Feeling drowsy?", "Put on ivisyx glasses", "Alert acknowledged"):
-            self.display.set_message(message)
-            self.assertTrue(self.sequence.tracking_paused)
+        self.display.set_message("Put on ivisyx glasses")
+        self.assertTrue(self.sequence.tracking_paused)
 
-    def test_start_waits_for_greeting_to_finish(self):
+    def test_score_is_marked_synthetic_at_start(self):
+        self.sequence.begin()
+        self.robot.send_score.assert_called_once_with(50, synthetic=True)
+
+    def test_correct_first_message_is_not_interrupted_or_repeated(self):
+        self.sequence.begin()
+        self.audio.camera_window_available.return_value = False
+        self.display.agent_response("Moderate drowsiness detected. Please put on your ivisyx glasses. Follow your approved fatigue procedures.")
+        self.sequence.update(self.conversation, self.audio)
+        self.sequence.update(self.conversation, self.audio)
+        self.assertTrue(self.sequence.alert_sent)
+        self.conversation.send_user_message.assert_not_called()
+        self.robot.show_message.assert_called_with("Put on ivisyx glasses")
+
+    def test_old_opening_finishes_before_fallback_alert(self):
         self.sequence.begin()
         self.audio.has_received_audio = True
         self.audio.camera_window_available.return_value = False
@@ -38,10 +51,9 @@ class PresentationTests(unittest.TestCase):
         self.conversation.send_user_message.assert_not_called()
         self.audio.camera_window_available.return_value = True
         self.sequence.update(self.conversation, self.audio)
-        self.conversation.send_user_message.assert_not_called()
-        self.assertTrue(self.sequence.start_sent)
+        self.conversation.send_user_message.assert_called_once_with(MODERATE_EVENT)
 
-    def test_no_greeting_falls_back_after_five_seconds(self):
+    def test_no_first_message_falls_back_after_five_seconds(self):
         self.audio.has_received_audio = False
         with patch("ivisyx.presentation.time.monotonic", return_value=10):
             self.sequence.begin()
@@ -49,77 +61,36 @@ class PresentationTests(unittest.TestCase):
         self.conversation.send_user_message.assert_not_called()
         with patch("ivisyx.presentation.time.monotonic", return_value=15):
             self.sequence.update(self.conversation, self.audio)
-        self.conversation.send_user_message.assert_called_once_with(START_EVENT)
+        self.conversation.send_user_message.assert_called_once_with(MODERATE_EVENT)
 
-    def test_greeting_then_alert_without_checklist_or_duplicate_greeting(self):
+    def test_fallback_alert_is_sent_once(self):
         self.sequence.begin()
         self.sequence.update(self.conversation, self.audio)
-        self.conversation.send_user_message.assert_not_called()
-        self.assertFalse(self.sequence.alert_sent)
-        self.audio.camera_window_available.return_value = False
         self.sequence.update(self.conversation, self.audio)
-        self.assertFalse(self.sequence.alert_sent)
-        self.audio.camera_window_available.return_value = True
-        self.sequence.update(self.conversation, self.audio)
-        self.sequence.update(self.conversation, self.audio)
-        self.assertEqual(self.conversation.send_user_message.call_count, 1)
-        self.conversation.send_user_message.assert_called_with(MODERATE_EVENT)
-        self.robot.send_score.assert_called_once_with(50, synthetic=True)
-        self.robot.show_message.assert_called_with("Feeling drowsy?")
+        self.conversation.send_user_message.assert_called_once_with(MODERATE_EVENT)
 
-    def test_glasses_reminder_follows_agent_affirmative_branch(self):
-        self.display.agent_response("Moderate drowsiness detected. Are you feeling drowsy?")
-        self.display.user_transcript("yes")
-        self.robot.show_message.assert_called_once_with("Feeling drowsy?")
-        self.display.agent_response("Please put on your ivisyx glasses. Follow your approved fatigue procedures.")
-        self.robot.show_message.assert_called_with("Put on ivisyx glasses")
+    def test_glasses_suggestion_requires_no_user_confirmation(self):
+        self.display.agent_response("Moderate drowsiness detected. Please put on your ivisyx glasses.")
+        self.robot.show_message.assert_called_once_with("Put on ivisyx glasses")
 
-    def test_negative_answer_does_not_show_glasses(self):
-        self.display.agent_response("Moderate drowsiness detected. Are you feeling drowsy?")
-        self.display.user_transcript("no")
-        self.display.agent_response("Understood. Please stay attentive to how you feel.")
-        self.robot.show_message.assert_called_with("Alert acknowledged")
-        self.assertNotIn("Put on ivisyx glasses", [call.args[0] for call in self.robot.show_message.call_args_list])
+    def test_event_is_direct_and_has_no_confirmation_question(self):
+        self.assertIn("Moderate drowsiness detected. Please put on your ivisyx glasses.", MODERATE_EVENT)
+        self.assertNotIn("Are you feeling drowsy?", MODERATE_EVENT)
+        self.assertNotIn("Only if they affirm", MODERATE_EVENT)
 
-    def test_event_instructs_agent_to_wait_for_answer(self):
-        self.assertIn("Wait for the pilot's answer", MODERATE_EVENT)
-        self.assertIn("Only if they affirm", MODERATE_EVENT)
-        self.assertIn("If they deny", MODERATE_EVENT)
-
-    def test_start_is_a_greeting_not_a_checklist(self):
-        self.assertIn("Hello, I'm ivisyx, your pilot-support companion.", START_EVENT)
-        self.assertNotIn("Have you reviewed", START_EVENT)
-        self.assertIn("Say exactly: Moderate drowsiness detected.", MODERATE_EVENT)
-
-    def test_preview_waits_for_drowsiness_answer_acknowledgement(self):
-        self.sequence.alert_sent = True
-        self.display.set_message("Feeling drowsy?")
-        self.assertFalse(self.sequence.dialogue_complete)
-        for message in ("Put on ivisyx glasses", "Alert acknowledged"):
-            self.display.set_message(message)
-            self.assertTrue(self.sequence.dialogue_complete)
-
-    def test_retries_start_when_socket_not_ready(self):
-        self.audio.has_received_audio = False
+    def test_fallback_retries_when_socket_not_ready(self):
         self.sequence.begin()
-        self.sequence._began_at -= 6
         self.conversation.send_user_message.side_effect = [RuntimeError("Not connected"), None]
         self.sequence.update(self.conversation, self.audio)
-        self.assertFalse(self.sequence.start_sent)
+        self.assertFalse(self.sequence.alert_sent)
         self.sequence.update(self.conversation, self.audio)
-        self.assertTrue(self.sequence.start_sent)
+        self.assertTrue(self.sequence.alert_sent)
 
-    def test_fallback_greeting_must_play_before_alert(self):
-        self.audio.has_received_audio = False
+    def test_dialogue_complete_after_glasses_suggestion(self):
         self.sequence.begin()
-        self.sequence._began_at -= 6
+        self.display.agent_response("Please put on your ivisyx glasses.")
         self.sequence.update(self.conversation, self.audio)
-        self.sequence.update(self.conversation, self.audio)
-        self.conversation.send_user_message.assert_called_once_with(START_EVENT)
-        self.audio.has_received_audio = True
-        self.audio.camera_window_available.return_value = True
-        self.sequence.update(self.conversation, self.audio)
-        self.conversation.send_user_message.assert_called_with(MODERATE_EVENT)
+        self.assertTrue(self.sequence.dialogue_complete)
 
     def test_real_scores_are_not_accepted_as_scripted(self):
         bridge = CoreS3Bridge(SerialFixture())
