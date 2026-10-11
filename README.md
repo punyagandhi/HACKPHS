@@ -3,7 +3,7 @@ ivisyx maker
 
 ## Projects
 
-- [ivisyx Stack-chan assistant](ivisyx/README.md): CoreS3 microphone/speaker conversation, tracked-eye preview, two-item pilot readiness check-in, and button-triggered presentation.
+- [ivisyx Stack-chan assistant](ivisyx/README.md): CoreS3 microphone/speaker conversation, tracked-eye preview, single-question preflight check-in, and button-triggered presentation.
 - [VIGIL website](vigil-site/README.md)
 - [Glasses firmware](IVISYX_Hack_PHS.ino)
 

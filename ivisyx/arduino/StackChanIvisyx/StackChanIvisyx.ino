@@ -146,8 +146,8 @@ void pumpDisplay() {
     CoreS3.Display.drawFastHLine(10, 30, 300, 0x4208);
     CoreS3.Display.setTextColor(0x9CF3, BLACK);
     CoreS3.Display.drawString(checklistStep == 2 ? "PREFLIGHT CHECKLIST COMPLETE" : "PREFLIGHT CHECK-IN", 10, 36);
-    const char* items[] = {"Aircraft checklist", "Ready and alert"};
-    for (int i = 0; i < 2; ++i) {
+    const char* items[] = {"Aircraft checklist"};
+    for (int i = 0; i < 1; ++i) {
       bool done = checklistStep > i;
       bool current = checklistStep == i;
       int y = 72 + i * 38;

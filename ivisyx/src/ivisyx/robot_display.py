@@ -1,4 +1,4 @@
-"""Map the two pilot readiness questions to the robot display."""
+"""Map the single preflight question to the robot display."""
 
 import re
 import threading
@@ -7,7 +7,6 @@ import threading
 class RobotDisplay:
     QUESTIONS = (
         "have you reviewed your aircraft s approved preflight checklist",
-        "are you feeling alert and ready",
     )
 
     def __init__(self, robot):
@@ -40,8 +39,8 @@ class RobotDisplay:
                 self.set_message("Put on ivisyx glasses")
             elif "are you feeling drowsy" in normalized:
                 self.set_message("Feeling drowsy?")
-            elif "this is a test alert only" in normalized:
-                self.set_message("Test alert acknowledged")
+            elif "please stay attentive to how you feel" in normalized:
+                self.set_message("Alert acknowledged")
 
     def set_message(self, message):
         with self._lock:

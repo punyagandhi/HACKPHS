@@ -32,8 +32,8 @@ class DisplayTests(unittest.TestCase):
 
     def test_repeated_question_does_not_resend(self):
         for _ in range(2):
-            self.display.agent_response("Are you feeling alert and ready?")
-        self.robot.show_checklist.assert_called_once_with(1)
+            self.display.agent_response("Have you reviewed your aircraft's approved preflight checklist?")
+        self.robot.show_checklist.assert_called_once_with(0)
 
     def test_tool_validates_every_field_before_changing_screen(self):
         for values in ({"checklist_step": 2, "message": 42},

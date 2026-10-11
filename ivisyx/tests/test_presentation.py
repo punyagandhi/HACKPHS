@@ -21,12 +21,11 @@ class PresentationTests(unittest.TestCase):
         self.sequence.update(self.conversation, self.audio)
         self.conversation.send_user_message.assert_not_called()
 
-    def test_two_questions_before_synthetic_alert(self):
+    def test_one_question_before_synthetic_alert(self):
         self.sequence.begin()
         self.sequence.update(self.conversation, self.audio)
         self.conversation.send_user_message.assert_called_once_with(START_EVENT)
-        for question in ("Have you reviewed your aircraft's approved preflight checklist?",
-                         "Are you feeling alert and ready?"):
+        for question in ("Have you reviewed your aircraft's approved preflight checklist?",):
             self.display.agent_response(question)
             self.sequence.update(self.conversation, self.audio)
         self.assertFalse(self.sequence.alert_sent)
@@ -43,17 +42,17 @@ class PresentationTests(unittest.TestCase):
         self.robot.show_message.assert_called_with("Feeling drowsy?")
 
     def test_glasses_reminder_follows_agent_affirmative_branch(self):
-        self.display.agent_response("Presentation test: moderate drowsiness detected. Are you feeling drowsy?")
+        self.display.agent_response("Moderate drowsiness detected. Are you feeling drowsy?")
         self.display.user_transcript("yes")
         self.robot.show_message.assert_called_once_with("Feeling drowsy?")
         self.display.agent_response("Please put on your ivisyx glasses. Follow your approved fatigue procedures.")
         self.robot.show_message.assert_called_with("Put on ivisyx glasses")
 
     def test_negative_answer_does_not_show_glasses(self):
-        self.display.agent_response("Presentation test: moderate drowsiness detected. Are you feeling drowsy?")
+        self.display.agent_response("Moderate drowsiness detected. Are you feeling drowsy?")
         self.display.user_transcript("no")
-        self.display.agent_response("Understood. This is a test alert only.")
-        self.robot.show_message.assert_called_with("Test alert acknowledged")
+        self.display.agent_response("Understood. Please stay attentive to how you feel.")
+        self.robot.show_message.assert_called_with("Alert acknowledged")
         self.assertNotIn("Put on ivisyx glasses", [call.args[0] for call in self.robot.show_message.call_args_list])
 
     def test_event_instructs_agent_to_wait_for_answer(self):
@@ -61,11 +60,17 @@ class PresentationTests(unittest.TestCase):
         self.assertIn("Only if they affirm", MODERATE_EVENT)
         self.assertIn("If they deny", MODERATE_EVENT)
 
+    def test_start_has_one_checklist_question_and_exact_completion(self):
+        self.assertEqual(len(RobotDisplay.QUESTIONS), 1)
+        self.assertNotIn("Are you feeling alert and ready", START_EVENT)
+        self.assertIn("Preflight checklist complete.", START_EVENT)
+        self.assertIn("Say exactly: Moderate drowsiness detected.", MODERATE_EVENT)
+
     def test_preview_waits_for_drowsiness_answer_acknowledgement(self):
         self.sequence.alert_sent = True
         self.display.set_message("Feeling drowsy?")
         self.assertFalse(self.sequence.dialogue_complete)
-        for message in ("Put on ivisyx glasses", "Test alert acknowledged"):
+        for message in ("Put on ivisyx glasses", "Alert acknowledged"):
             self.display.set_message(message)
             self.assertTrue(self.sequence.dialogue_complete)
 
