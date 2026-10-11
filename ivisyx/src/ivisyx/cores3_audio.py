@@ -125,6 +125,20 @@ class CoreS3Bridge(StackChan):
     def arm_presentation(self, enabled: bool) -> None:
         self.send(StackChanCommand("demo", "arm" if enabled else "disarm"))
 
+    def start_face_search(self) -> None:
+        self.send(StackChanCommand("seek", "start"))
+
+    def search_yaw(self, degrees: int) -> None:
+        if isinstance(degrees, bool) or not isinstance(degrees, int) or not -12 <= degrees <= 12:
+            raise ValueError("Search yaw must be an integer within -12..12 degrees")
+        self.send(StackChanCommand("seek", f"yaw:{degrees}"))
+
+    def hold_face_search(self) -> None:
+        self.send(StackChanCommand("seek", "hold"))
+
+    def cancel_face_search(self) -> None:
+        self.send(StackChanCommand("seek", "cancel"))
+
     def send_score(self, score: int, *, synthetic: bool) -> None:
         if not synthetic or isinstance(score, bool) or not isinstance(score, int) or not 0 <= score <= 100:
             raise ValueError("Only explicitly synthetic presentation scores are supported")

@@ -44,6 +44,26 @@ SCSCL pitchBus;
 bool pitchBusReady = false;
 String motionResult = "idle";
 int pitchCurrent = -1, pitchTarget = -1, pitchLimit = -1, pitchTorqueAck = -1, pitchWriteAck = -1;
+int searchOrigin = -1, searchMinimum = -1, searchMaximum = -1;
+bool searchActive = false;
+
+void stopMotorPower() {
+  searchActive = false;
+  if (pitchBusReady) {
+    pitchBus.EnableTorque(1, 0);
+    pitchBus.EnableTorque(2, 0);
+  }
+  if (lightsReady) sideLights.digitalWrite(0, false);
+}
+
+bool holdSearchYaw() {
+  if (!pitchBusReady) return false;
+  int current = pitchBus.ReadPos(1);
+  if (current < searchMinimum || current > searchMaximum) {
+    pitchBus.EnableTorque(1, 0); searchActive = false; return false;
+  }
+  return pitchBus.WritePos(1, current, 20, 0) == 1;
+}
 
 bool tiltUp45() {
   if (!lightsReady) return false;
@@ -123,8 +143,7 @@ void pumpDisplay() {
   M5.update();
   if (demoArmed && millis() - demoHeartbeat > 15000) {
     demoArmed = false;
-    if (pitchBusReady) pitchBus.EnableTorque(2, 0);
-    if (lightsReady) sideLights.digitalWrite(0, false);
+    stopMotorPower();
   }
   if (demoArmed && motionResult == "idle" && M5.BtnPWR.wasClicked()) {
     ++buttonPresses;
@@ -294,8 +313,7 @@ void handleLine(const String& line) {
     demoArmed = line == "demo:arm";
     demoHeartbeat = millis();
     if (!demoArmed) {
-      if (pitchBusReady) pitchBus.EnableTorque(2, 0);
-      if (lightsReady) sideLights.digitalWrite(0, false);
+      stopMotorPower();
     } else { presentationScore = -1; motionResult = "idle"; }
     displayDirty = true;
     Serial.println("ok:" + line); return;
@@ -310,6 +328,47 @@ void handleLine(const String& line) {
     ++buttonPresses;
     motionResult = tiltUp45() ? "commanded" : "failed";
     Serial.println("ok:demo:tilt"); return;
+  }
+  if (line == "seek:start") {
+    if (!demoArmed || !pitchBusReady || motionResult != "commanded") {
+      Serial.println("ERR search requires armed tilt"); return;
+    }
+    searchOrigin = pitchBus.ReadPos(1);
+    searchMinimum = pitchBus.readWord(1, SCSCL_MIN_ANGLE_LIMIT_L);
+    searchMaximum = pitchBus.readWord(1, SCSCL_MAX_ANGLE_LIMIT_L);
+    // Do not change servo mode or EEPROM limits to make a sweep possible.
+    if (searchMaximum >= 1000 && searchMaximum <= 1023) searchMaximum = 1000;
+    if (searchMinimum < 0 || searchMaximum > 1000 || searchMaximum <= searchMinimum ||
+        searchOrigin - 39 < searchMinimum || searchOrigin + 39 > searchMaximum ||
+        pitchBus.EnableTorque(1, 1) != 1) {
+      pitchBus.EnableTorque(1, 0);
+      Serial.printf("ERR yaw search unavailable current=%d min=%d max=%d\n", searchOrigin, searchMinimum, searchMaximum); return;
+    }
+    searchActive = true; demoHeartbeat = millis();
+    Serial.println("ok:seek:start"); return;
+  }
+  if (line.startsWith("seek:yaw:")) {
+    String value = line.substring(9);
+    char* end = nullptr;
+    long degrees = strtol(value.c_str(), &end, 10);
+    if (!demoArmed || !searchActive || !value.length() || *end || degrees < -12 || degrees > 12) {
+      Serial.println("ERR invalid or inactive yaw search"); return;
+    }
+    int target = searchOrigin + degrees * 16 / 5;
+    if (target < searchMinimum || target > searchMaximum || pitchBus.WritePos(1, target, 600, 0) != 1) {
+      pitchBus.EnableTorque(1, 0); searchActive = false; Serial.println("ERR yaw movement failed"); return;
+    }
+    demoHeartbeat = millis(); Serial.println("ok:" + line); return;
+  }
+  if (line == "seek:hold" || line == "seek:cancel") {
+    if (!demoArmed || !searchActive || !holdSearchYaw()) {
+      pitchBus.EnableTorque(1, 0); searchActive = false;
+      Serial.println("ERR cannot hold yaw search"); return;
+    }
+    if (line == "seek:cancel") {
+      pitchBus.EnableTorque(1, 0); searchActive = false; motionResult = "idle";
+    }
+    demoHeartbeat = millis(); Serial.println("ok:" + line); return;
   }
   if (line.startsWith("score:test:")) {
     String value = line.substring(11);

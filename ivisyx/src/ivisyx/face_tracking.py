@@ -9,6 +9,7 @@ from ivisyx.cores3_camera import connect_camera
 from ivisyx.drowsiness import EYES, AgentAlert, EyelidMonitor, eye_ratios
 from ivisyx.robot_display import RobotDisplay
 from ivisyx.presentation import PresentationSequence
+from ivisyx.face_acquisition import FaceAcquisition
 
 PROJECT = Path(__file__).resolve().parents[2]
 MODEL = PROJECT / "models" / "face_landmarker.task"
@@ -116,6 +117,7 @@ def main() -> None:
     started = time.monotonic()
     timestamp = -1
     sequence = None
+    acquisition = None
     conversation_started = False
     last_preview = -float("inf")
     last_button = 0
@@ -148,7 +150,7 @@ def main() -> None:
                     camera.arm_presentation(True)
                     robot_display.set_message("PRESENTATION: press power")
                     agent_status = "Waiting for power button"
-                    print("Presentation ready: short-click the power button to tilt up and begin.", flush=True)
+                    print("Presentation ready: short-click power to tilt up and search for a face before speaking.", flush=True)
                 else:
                     conversation.start_session()
                     conversation_started = True
@@ -166,18 +168,18 @@ def main() -> None:
                     if button["presses"] != last_button and not sequence.started:
                         last_button = button["presses"]
                         if button["motion"] != "commanded":
-                            print(f"Head tilt unavailable; continuing without movement. Servo diagnostics: {button}", flush=True)
-                        sequence.begin()
-                        conversation.start_session()
-                        conversation_started = True
-                        agent_status = "Presentation / Stack-chan audio"
+                            raise RuntimeError("Cannot safely search for a face without working head motion.")
+                        acquisition = FaceAcquisition(camera, robot_display)
+                        acquisition.begin(time.monotonic())
+                        agent_status = "Looking for face / speech paused"
                     sequence.update(conversation, robot_audio)
                     if conversation_started and not sequence.dialogue_complete:
                         if not args.headless and cv2.waitKey(1) & 0xFF in (27, ord("q")):
                             break
                         time.sleep(.05)
                         continue
-                if args.presentation and time.monotonic() - last_preview < 1:
+                preview_interval = .25 if acquisition and not (acquisition.found or acquisition.failed) else 1
+                if args.presentation and time.monotonic() - last_preview < preview_interval:
                     if not args.headless and cv2.waitKey(1) & 0xFF in (27, ord("q")):
                         break
                     time.sleep(.05)
@@ -201,9 +203,19 @@ def main() -> None:
                 timestamp = max(timestamp + 1, int((time.monotonic() - started) * 1000))
                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 result = landmarker.detect_for_video(mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb), timestamp)
-                if time.monotonic() - last_preview >= 1:
+                if time.monotonic() - last_preview >= preview_interval:
                     camera.show_preview(robot_preview(frame, result))
                     last_preview = time.monotonic()
+                if acquisition is not None and not (acquisition.found or acquisition.failed):
+                    acquisition.update(time.monotonic(), bool(result.face_landmarks))
+                    if acquisition.found:
+                        camera.stop_camera()
+                        sequence.begin()
+                        conversation.start_session()
+                        conversation_started = True
+                        agent_status = "Face acquired / Stack-chan audio"
+                    elif acquisition.failed:
+                        agent_status = "No face found / press power to retry"
                 eyelids = None
                 if monitor is not None:
                     ratios = eye_ratios(result.face_landmarks[0], frame.shape[1], frame.shape[0]) if result.face_landmarks else None

@@ -5,11 +5,31 @@
 Run `run_presentation.py` in PyCharm; stop all other robot launchers first.
 Keep the robot on a stable surface with clearance above its head. Short-click
 the power button, not a long hold. The head receives a slow 45-degree upward
-pitch command; yaw is not moved. The Mac must remain connected and running.
-If the servo is unavailable, its diagnostics are logged and the voice/video
-presentation continues without movement. A received command is not proof of
+pitch command, then makes a small yaw search, at most 12 degrees either side
+of its starting position. Two consecutive face detections stop the search
+and start the conversation. The Mac must remain connected and running.
+If no face is found within 14 seconds, the robot stops searching and stays
+silent; face the camera and short-click power again to retry. Servo failures
+stop the launch rather than starting speech with an unconfirmed face.
+A received command is not proof of
 the physical angle; confirm the tilt visually. M5Stack recommends the base
 USB-C port when motors are used.
+
+The yaw search requires the updated firmware and valid position-mode servo
+limits. It never changes servo mode, calibration, or EEPROM limits. Keep the
+robot on a stable surface with clearance for both tilt and the small sweep.
+This is startup acquisition only, not continuous face following. During the
+checklist and drowsiness question, the head stays still and camera updates pause.
+
+For a camera/servo-only startup check, with all other robot programs stopped:
+
+```bash
+PYTHONPATH=src .venv/bin/python -m ivisyx.face_search_smoke_test
+```
+
+This commands the tilt and bounded search immediately, without a button press
+or ElevenLabs connection. It saves no images or audio and releases motor power
+on exit. Physical angle and audible quality still require human confirmation.
 
 ivisyx begins a single-question pilot-support preflight check-in:
 
